@@ -5,7 +5,8 @@ import {
   File,
   PlusCircle,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  History
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -74,6 +75,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { Label } from "@/components/ui/label"
+import { useRouter } from "next/navigation"
 
 interface ClassSection {
   id: string;
@@ -104,6 +106,7 @@ export default function StudentsPage() {
   const { user, firestore } = useFirebase();
   const schoolId = user?.uid;
   const { toast } = useToast();
+  const router = useRouter();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -227,6 +230,9 @@ export default function StudentsPage() {
     setIsStatusDialogOpen(true);
   };
 
+  const handleTimeline = (student: Student) => {
+    router.push(`/dashboard/students/${student.id}/timeline`);
+  };
 
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
     if (!firestore || !schoolId) {
@@ -639,6 +645,10 @@ export default function StudentsPage() {
                               <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleTimeline(student)}>
+                                <History className="mr-2 h-4 w-4" />
+                                <span>Timeline</span>
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -799,3 +809,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+    
