@@ -17,6 +17,7 @@ export interface Student {
   fullName: string;
   dateOfBirth: string; 
   parentGuardianName: string;
+  motherName?: string;
   classSectionId: string;
   address: string;
   aadhaarNumber?: string;
@@ -47,6 +48,8 @@ export interface Exam {
   date: string;
   class: string;
 }
+
+    
 
     
 
