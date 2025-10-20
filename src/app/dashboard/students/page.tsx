@@ -288,7 +288,7 @@ export default function StudentsPage() {
     setSelectedStudent(null);
   }
   
-  const classOptions = ["LKG", "UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
+  const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">

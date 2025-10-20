@@ -44,7 +44,7 @@ interface ClassSection {
     classInchargeId?: string;
 }
 
-const predefinedClasses = ["LKG", "UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
+const predefinedClasses = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
 const sectionFormSchema = z.object({
   id: z.string().optional(),
