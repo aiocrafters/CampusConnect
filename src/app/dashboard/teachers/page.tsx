@@ -69,6 +69,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect } from "react"
 import { format, parseISO } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { sendWelcomeEmail } from "@/ai/flows/send-email-flow"
 
 const teacherFormSchema = z.object({
   id: z.string().min(1, "Teacher ID is required."),
@@ -186,10 +187,20 @@ export default function TeachersPage() {
       try {
         // NOTE: This creates a user in the project's main Firebase Auth.
         // For a true multi-tenant app, you'd use a separate auth instance or custom tokens.
-        await createUserWithEmailAndPassword(auth, values.email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         
-        setDocumentNonBlocking(teacherDocRef, dataToSave, { merge: false });
-        toast({ title: "Teacher Added", description: `${values.name} has been added and a login account has been created.` });
+        const dataWithUid = { ...dataToSave, uid: userCredential.user.uid };
+        
+        setDocumentNonBlocking(teacherDocRef, dataWithUid, { merge: false });
+
+        // Send welcome email
+        await sendWelcomeEmail({
+          to: values.email,
+          name: values.name,
+          password: password
+        });
+
+        toast({ title: "Teacher Added", description: `${values.name} has been added and a welcome email has been sent.` });
 
       } catch (error: any) {
          let description = "An error occurred while creating the teacher's login account.";
@@ -561,3 +572,5 @@ export default function TeachersPage() {
     </main>
   )
 }
+
+    

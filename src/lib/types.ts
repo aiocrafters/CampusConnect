@@ -42,6 +42,7 @@ export interface Teacher {
   role: 'Primary' | 'Middle School' | 'High School';
   subject: 'General' | 'English' | 'Urdu' | 'Math' | 'Science' | 'Social Studies';
   schoolId: string;
+  uid?: string;
 }
 
 export interface SchoolClass {
@@ -57,5 +58,7 @@ export interface Exam {
   date: string;
   class: string;
 }
+
+    
 
     
