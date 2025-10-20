@@ -126,10 +126,12 @@ export default function StudentsPage() {
   const { data: classSections, isLoading: classSectionsLoading } = useCollection<ClassSection>(classSectionsQuery);
 
 
-  const getSectionName = (sectionId: string) => {
-    if (!classSections) return "N/A";
+  const getSectionDetails = (sectionId: string) => {
+    if (!classSections) return { className: "N/A", sectionName: "" };
     const section = classSections.find(s => s.id === sectionId);
-    return section ? `${section.className} - ${section.sectionName}` : "Not Assigned";
+    return section 
+      ? { className: section.className, sectionName: section.sectionName } 
+      : { className: "Not Assigned", sectionName: "" };
   };
 
 
@@ -507,7 +509,7 @@ export default function StudentsPage() {
                           name="classSectionId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Admission Class & Section</FormLabel>
+                              <FormLabel>Admission Class &amp; Section</FormLabel>
                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                   <SelectTrigger disabled={classSectionsLoading}>
@@ -566,7 +568,9 @@ export default function StudentsPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Admission Date</TableHead>
                     <TableHead>DOB</TableHead>
-                    <TableHead>Class - Section</TableHead>
+                    <TableHead>Admission Class</TableHead>
+                    <TableHead>Current Class</TableHead>
+                    <TableHead>Current Section</TableHead>
                     <TableHead>Father's Name</TableHead>
                     <TableHead>Mother's Name</TableHead>
                     <TableHead>Address</TableHead>
@@ -583,57 +587,62 @@ export default function StudentsPage() {
                 <TableBody>
                   {studentsLoading && (
                     <TableRow>
-                      <TableCell colSpan={16} className="text-center">
+                      <TableCell colSpan={18} className="text-center">
                         Loading student data...
                       </TableCell>
                     </TableRow>
                   )}
                   {!studentsLoading && students?.length === 0 && (
                      <TableRow>
-                      <TableCell colSpan={16} className="text-center">
+                      <TableCell colSpan={18} className="text-center">
                         No students found. Add one to get started.
                       </TableCell>
                     </TableRow>
                   )}
-                  {students && students.map(student => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
-                    <TableCell className="font-medium">{student.admissionNumber}</TableCell>
-                    <TableCell>{student.fullName}</TableCell>
-                    <TableCell>
-                       <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                          {student.status}
-                        </Badge>
-                    </TableCell>
-                    <TableCell>{student.admissionDate}</TableCell>
-                    <TableCell>{student.dateOfBirth}</TableCell>
-                    <TableCell>{getSectionName(student.classSectionId)}</TableCell>
-                    <TableCell>{student.parentGuardianName}</TableCell>
-                    <TableCell>{student.motherName}</TableCell>
-                    <TableCell className="truncate max-w-xs">{student.address}</TableCell>
-                    <TableCell>{student.pen}</TableCell>
-                    <TableCell>{student.aadhaarNumber}</TableCell>
-                    <TableCell>{student.bankAccountNumber}</TableCell>
-                    <TableCell>{student.bankName}</TableCell>
-                    <TableCell>{student.ifscCode}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                  ))}
+                  {students && students.map(student => {
+                    const { className, sectionName } = getSectionDetails(student.classSectionId);
+                    return (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
+                        <TableCell className="font-medium">{student.admissionNumber}</TableCell>
+                        <TableCell>{student.fullName}</TableCell>
+                        <TableCell>
+                           <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
+                              {student.status}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>{student.admissionDate}</TableCell>
+                        <TableCell>{student.dateOfBirth}</TableCell>
+                        <TableCell>{className} - {sectionName}</TableCell>
+                        <TableCell>{className}</TableCell>
+                        <TableCell>{sectionName}</TableCell>
+                        <TableCell>{student.parentGuardianName}</TableCell>
+                        <TableCell>{student.motherName}</TableCell>
+                        <TableCell className="truncate max-w-xs">{student.address}</TableCell>
+                        <TableCell>{student.pen}</TableCell>
+                        <TableCell>{student.aadhaarNumber}</TableCell>
+                        <TableCell>{student.bankAccountNumber}</TableCell>
+                        <TableCell>{student.bankName}</TableCell>
+                        <TableCell>{student.ifscCode}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -673,8 +682,16 @@ export default function StudentsPage() {
                   <span>{selectedStudent.dateOfBirth}</span>
                 </div>
                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Class & Section</span>
-                  <span>{getSectionName(selectedStudent.classSectionId)}</span>
+                  <span className="font-semibold text-muted-foreground">Admission Class</span>
+                  <span>{getSectionDetails(selectedStudent.classSectionId).className} - {getSectionDetails(selectedStudent.classSectionId).sectionName}</span>
+                </div>
+                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Current Class</span>
+                  <span>{getSectionDetails(selectedStudent.classSectionId).className}</span>
+                </div>
+                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Current Section</span>
+                  <span>{getSectionDetails(selectedStudent.classSectionId).sectionName}</span>
                 </div>
                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                   <span className="font-semibold text-muted-foreground">Father's Name</span>
@@ -780,3 +797,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+    
