@@ -516,87 +516,85 @@ export default function StudentsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="w-full whitespace-nowrap">
-                <Table>
-                  <TableHeader>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead>Admission No.</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Admission Date</TableHead>
+                    <TableHead>DOB</TableHead>
+                    <TableHead>Admission Class</TableHead>
+                    <TableHead>Father's Name</TableHead>
+                    <TableHead>Mother's Name</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>PEN</TableHead>
+                    <TableHead>Aadhar</TableHead>
+                    <TableHead>Bank Acc No.</TableHead>
+                    <TableHead>Bank Name</TableHead>
+                    <TableHead>IFSC</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentsLoading && (
                     <TableRow>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Admission No.</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Admission Date</TableHead>
-                      <TableHead>DOB</TableHead>
-                      <TableHead>Admission Class</TableHead>
-                      <TableHead>Father's Name</TableHead>
-                      <TableHead>Mother's Name</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>PEN</TableHead>
-                      <TableHead>Aadhar</TableHead>
-                      <TableHead>Bank Acc No.</TableHead>
-                      <TableHead>Bank Name</TableHead>
-                      <TableHead>IFSC</TableHead>
-                      <TableHead>
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {studentsLoading && (
-                      <TableRow>
-                        <TableCell colSpan={16} className="text-center">
-                          Loading student data...
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {!studentsLoading && students?.length === 0 && (
-                       <TableRow>
-                        <TableCell colSpan={16} className="text-center">
-                          No students found. Add one to get started.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {students && students.map(student => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
-                      <TableCell className="font-medium">{student.admissionNumber}</TableCell>
-                      <TableCell>{student.fullName}</TableCell>
-                      <TableCell>
-                         <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                            {student.status}
-                          </Badge>
-                      </TableCell>
-                      <TableCell>{student.admissionDate}</TableCell>
-                      <TableCell>{student.dateOfBirth}</TableCell>
-                      <TableCell>{student.classSectionId}</TableCell>
-                      <TableCell>{student.parentGuardianName}</TableCell>
-                      <TableCell>{student.motherName}</TableCell>
-                      <TableCell className="truncate max-w-xs">{student.address}</TableCell>
-                      <TableCell>{student.pen}</TableCell>
-                      <TableCell>{student.aadhaarNumber}</TableCell>
-                      <TableCell>{student.bankAccountNumber}</TableCell>
-                      <TableCell>{student.bankName}</TableCell>
-                      <TableCell>{student.ifscCode}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <TableCell colSpan={16} className="text-center">
+                        Loading student data...
                       </TableCell>
                     </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                  )}
+                  {!studentsLoading && students?.length === 0 && (
+                     <TableRow>
+                      <TableCell colSpan={16} className="text-center">
+                        No students found. Add one to get started.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {students && students.map(student => (
+                  <TableRow key={student.id}>
+                    <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
+                    <TableCell className="font-medium">{student.admissionNumber}</TableCell>
+                    <TableCell>{student.fullName}</TableCell>
+                    <TableCell>
+                       <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
+                          {student.status}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>{student.admissionDate}</TableCell>
+                    <TableCell>{student.dateOfBirth}</TableCell>
+                    <TableCell>{student.classSectionId}</TableCell>
+                    <TableCell>{student.parentGuardianName}</TableCell>
+                    <TableCell>{student.motherName}</TableCell>
+                    <TableCell className="truncate max-w-xs">{student.address}</TableCell>
+                    <TableCell>{student.pen}</TableCell>
+                    <TableCell>{student.aadhaarNumber}</TableCell>
+                    <TableCell>{student.bankAccountNumber}</TableCell>
+                    <TableCell>{student.bankName}</TableCell>
+                    <TableCell>{student.ifscCode}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
