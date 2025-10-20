@@ -19,6 +19,7 @@ export interface Student {
   dateOfBirth: string; 
   parentGuardianName: string;
   motherName?: string;
+  admissionClass: string;
   classSectionId: string;
   address: string;
   aadhaarNumber?: string;

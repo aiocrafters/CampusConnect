@@ -91,14 +91,9 @@ export default function ClassesPage() {
   }, [selectedClass, allClassSections]);
 
   const studentsForSelectedClass = useMemo(() => {
-    if (!selectedClass || !allStudents || !allClassSections) return [];
-    
-    const sectionIdsOfClass = allClassSections
-        .filter(s => s.className === selectedClass)
-        .map(s => s.id);
-
-    return allStudents.filter(student => sectionIdsOfClass.includes(student.classSectionId));
-  }, [selectedClass, allStudents, allClassSections]);
+    if (!selectedClass || !allStudents) return [];
+    return allStudents.filter(student => student.admissionClass === selectedClass);
+  }, [selectedClass, allStudents]);
 
   const form = useForm<z.infer<typeof sectionFormSchema>>({
     resolver: zodResolver(sectionFormSchema),

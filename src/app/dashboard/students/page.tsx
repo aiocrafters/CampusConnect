@@ -95,7 +95,8 @@ const studentFormSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
-  classSectionId: z.string().min(1, "Admission Class/Section is required"),
+  admissionClass: z.string().min(1, "Admission Class is required"),
+  classSectionId: z.string().optional(),
 });
 
 
@@ -126,8 +127,8 @@ export default function StudentsPage() {
   const { data: classSections, isLoading: classSectionsLoading } = useCollection<ClassSection>(classSectionsQuery);
 
 
-  const getSectionDetails = (sectionId: string) => {
-    if (!classSections) return { className: "N/A", sectionName: "" };
+  const getSectionDetails = (sectionId?: string) => {
+    if (!classSections || !sectionId) return { className: "N/A", sectionName: "" };
     const section = classSections.find(s => s.id === sectionId);
     return section 
       ? { className: section.className, sectionName: section.sectionName } 
@@ -159,6 +160,7 @@ export default function StudentsPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
+      admissionClass: "",
       classSectionId: "",
     },
   });
@@ -189,6 +191,7 @@ export default function StudentsPage() {
           bankAccountNumber: "",
           bankName: "",
           ifscCode: "",
+          admissionClass: "",
           classSectionId: "",
         });
       }
@@ -237,7 +240,8 @@ export default function StudentsPage() {
     
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
     
-    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason'> & { schoolId: string } = {
+    // We remove classSectionId from the data to save, as it's now managed on the classes page
+    const { classSectionId, ...dataToSave }: Omit<Student, 'status' | 'schoolId' | 'inactiveReason'> & { schoolId: string } = {
         ...values,
         schoolId,
     };
@@ -254,12 +258,13 @@ export default function StudentsPage() {
       const dataWithStatus: Student = {
         ...dataToSave,
         status: 'Active' as const,
+        classSectionId: '', // Initially empty
       };
       
       setDocumentNonBlocking(studentDocRef, dataWithStatus, { merge: false });
       toast({
         title: "Student Added",
-        description: `${values.fullName} has been added to the student list.`,
+        description: `${values.fullName} has been added. Assign a section in the Classes page.`,
       });
     }
 
@@ -506,26 +511,22 @@ export default function StudentsPage() {
                         />
                          <FormField
                           control={form.control}
-                          name="classSectionId"
+                          name="admissionClass"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Admission Class</FormLabel>
                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditMode}>
                                 <FormControl>
-                                  <SelectTrigger disabled={classSectionsLoading || isEditMode}>
-                                    <SelectValue placeholder={classSectionsLoading ? "Loading..." : "Select a class and section"} />
+                                  <SelectTrigger disabled={isEditMode}>
+                                    <SelectValue placeholder="Select an admission class" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {!classSectionsLoading && classSections && classSections.length > 0 ? (
-                                        classSections.map((section) => (
-                                            <SelectItem key={section.id} value={section.id}>
-                                            {section.className} - {section.sectionName}
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <SelectItem value="-" disabled>No sections created yet</SelectItem>
-                                    )}
+                                    {classOptions.map((className) => (
+                                        <SelectItem key={className} value={className}>
+                                            Class {className}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                               {isEditMode && <FormDescription>The admission class cannot be changed.</FormDescription>}
@@ -614,7 +615,7 @@ export default function StudentsPage() {
                         </TableCell>
                         <TableCell>{student.admissionDate}</TableCell>
                         <TableCell>{student.dateOfBirth}</TableCell>
-                        <TableCell>{className} - {sectionName}</TableCell>
+                        <TableCell>{student.admissionClass}</TableCell>
                         <TableCell>{className}</TableCell>
                         <TableCell>{sectionName}</TableCell>
                         <TableCell>{student.parentGuardianName}</TableCell>
@@ -684,7 +685,7 @@ export default function StudentsPage() {
                 </div>
                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                   <span className="font-semibold text-muted-foreground">Admission Class</span>
-                  <span>{getSectionDetails(selectedStudent.classSectionId).className} - {getSectionDetails(selectedStudent.classSectionId).sectionName}</span>
+                  <span>{selectedStudent.admissionClass}</span>
                 </div>
                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                   <span className="font-semibold text-muted-foreground">Current Class</span>
@@ -798,7 +799,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-    
-
-
