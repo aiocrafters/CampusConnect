@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import {
@@ -207,9 +206,8 @@ export default function StudentsPage() {
     }
     
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
-
-    // Omit 'udiseCode' if it exists in values, as it's no longer in the schema
-    const { ...dataToSave }: Omit<Student, 'status' | 'schoolId'> & { schoolId: string } = {
+    
+    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason'> & { schoolId: string } = {
         ...values,
         schoolId,
     };
@@ -223,7 +221,7 @@ export default function StudentsPage() {
       });
     } else {
       // Create new document
-      const dataWithStatus = {
+      const dataWithStatus: Student = {
         ...dataToSave,
         status: 'Active' as const,
       };
@@ -743,3 +741,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+    
