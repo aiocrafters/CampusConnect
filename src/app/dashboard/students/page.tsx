@@ -510,9 +510,9 @@ export default function StudentsPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Admission Class</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditMode}>
                                 <FormControl>
-                                  <SelectTrigger disabled={classSectionsLoading}>
+                                  <SelectTrigger disabled={classSectionsLoading || isEditMode}>
                                     <SelectValue placeholder={classSectionsLoading ? "Loading..." : "Select a class and section"} />
                                   </SelectTrigger>
                                 </FormControl>
@@ -528,6 +528,7 @@ export default function StudentsPage() {
                                     )}
                                 </SelectContent>
                               </Select>
+                              {isEditMode && <FormDescription>The admission class cannot be changed.</FormDescription>}
                               <FormMessage />
                             </FormItem>
                           )}
@@ -799,4 +800,5 @@ export default function StudentsPage() {
 }
 
     
+
 
