@@ -1,9 +1,10 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from "lucide-react"
+import { PlusCircle, Edit, Trash2, Users } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, where } from "firebase/firestore"
+import { collection, query, doc, writeBatch } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -20,7 +21,6 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Sheet,
@@ -30,12 +30,13 @@ import {
   SheetTitle,
   SheetFooter,
   SheetClose,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
-import type { Teacher } from "@/lib/types"
+import type { Teacher, Student } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 
 // Based on backend.json
@@ -66,6 +67,8 @@ export default function ClassesPage() {
   const [selectedSection, setSelectedSection] = useState<ClassSection | null>(null);
   const [isManageSectionsDialogOpen, setIsManageSectionsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isManageStudentsDialogOpen, setIsManageStudentsDialogOpen] = useState(false);
+  const [studentsToAssign, setStudentsToAssign] = useState<string[]>([]);
 
   // Fetch all class sections for the school
   const classSectionsQuery = useMemoFirebase(() => {
@@ -81,10 +84,28 @@ export default function ClassesPage() {
   }, [firestore, schoolId]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
 
+    // Fetch all students for the school
+  const studentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/students`));
+  }, [firestore, schoolId]);
+  const { data: allStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+
+
   const sectionsForSelectedClass = useMemo(() => {
     if (!selectedClass || !allClassSections) return [];
     return allClassSections.filter(section => section.className === selectedClass);
   }, [selectedClass, allClassSections]);
+
+  const { unassignedStudents, assignedStudents } = useMemo(() => {
+    if (!allStudents || !selectedSection) {
+      return { unassignedStudents: [], assignedStudents: [] };
+    }
+    const assigned = allStudents.filter(student => student.classSectionId === selectedSection.id);
+    const unassigned = allStudents.filter(student => student.classSectionId !== selectedSection.id);
+    return { unassignedStudents: unassigned, assignedStudents: assigned };
+  }, [allStudents, selectedSection]);
+
 
   const form = useForm<z.infer<typeof sectionFormSchema>>({
     resolver: zodResolver(sectionFormSchema),
@@ -131,6 +152,12 @@ export default function ClassesPage() {
   const handleDeleteSection = (section: ClassSection) => {
     setSelectedSection(section);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleManageStudents = (section: ClassSection) => {
+    setSelectedSection(section);
+    setIsManageStudentsDialogOpen(true);
+    setStudentsToAssign([]);
   };
 
   const getTeacherName = (teacherId?: string) => {
@@ -184,6 +211,27 @@ export default function ClassesPage() {
   const getSectionsForClass = (className: string) => {
     if (!allClassSections) return [];
     return allClassSections.filter(section => section.className === className);
+  };
+
+  const handleAssignStudents = async () => {
+    if (!firestore || !schoolId || !selectedSection || studentsToAssign.length === 0) {
+      toast({ variant: "destructive", title: "Error", description: "No students selected or section not found." });
+      return;
+    }
+    try {
+        const batch = writeBatch(firestore);
+        studentsToAssign.forEach(studentId => {
+            const studentRef = doc(firestore, `schools/${schoolId}/students`, studentId);
+            batch.update(studentRef, { classSectionId: selectedSection.id });
+        });
+        await batch.commit();
+        toast({ title: "Students Assigned", description: `${studentsToAssign.length} student(s) have been assigned to section ${selectedSection.sectionName}.` });
+        setIsManageStudentsDialogOpen(false);
+        setStudentsToAssign([]);
+    } catch (error) {
+        console.error("Error assigning students: ", error);
+        toast({ variant: "destructive", title: "Assignment Failed", description: "Could not assign students to the section." });
+    }
   };
 
 
@@ -251,11 +299,11 @@ export default function ClassesPage() {
       
       {/* Dialog to Manage Sections for a specific class */}
       <Dialog open={isManageSectionsDialogOpen} onOpenChange={setIsManageSectionsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Manage Sections for Class {selectedClass}</DialogTitle>
             <DialogDescription>
-              Add, edit, or remove sections for this class.
+              Add, edit, or remove sections for this class and manage students.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -291,6 +339,10 @@ export default function ClassesPage() {
                             <TableCell>{section.sectionName}</TableCell>
                             <TableCell>{getTeacherName(section.classInchargeId)}</TableCell>
                             <TableCell className="text-right">
+                                <Button variant="outline" size="sm" className="mr-2" onClick={() => handleManageStudents(section)}>
+                                    <Users className="h-4 w-4 mr-2" />
+                                    Manage Students
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => handleEditSection(section)}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
@@ -390,6 +442,92 @@ export default function ClassesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+        {/* Dialog to Manage Students in a Section */}
+        <Dialog open={isManageStudentsDialogOpen} onOpenChange={setIsManageStudentsDialogOpen}>
+            <DialogContent className="sm:max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Manage Students for {selectedClass} - Section {selectedSection?.sectionName}</DialogTitle>
+                    <DialogDescription>
+                        Assign students to this section or view current students.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-6 py-4">
+                    <div>
+                        <h3 className="text-lg font-medium mb-2">Assign Students</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Select students from the list below to add them to this section.</p>
+                        <ScrollArea className="h-72 w-full rounded-md border">
+                            <div className="p-4">
+                                {studentsLoading ? (
+                                    <p>Loading students...</p>
+                                ) : unassignedStudents.length > 0 ? (
+                                    unassignedStudents.map(student => (
+                                        <div key={student.id} className="flex items-center space-x-2 mb-2">
+                                            <Checkbox
+                                                id={`student-${student.id}`}
+                                                checked={studentsToAssign.includes(student.id)}
+                                                onCheckedChange={(checked) => {
+                                                    setStudentsToAssign(prev =>
+                                                        checked ? [...prev, student.id] : prev.filter(id => id !== student.id)
+                                                    );
+                                                }}
+                                            />
+                                            <label
+                                                htmlFor={`student-${student.id}`}
+                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                                {student.fullName} (Adm. No: {student.admissionNumber})
+                                            </label>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center">No students available to assign.</p>
+                                )}
+                            </div>
+                        </ScrollArea>
+                        <Button className="mt-4 w-full" disabled={studentsToAssign.length === 0} onClick={handleAssignStudents}>
+                            Assign {studentsToAssign.length > 0 ? studentsToAssign.length : ''} Student(s)
+                        </Button>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-medium mb-2">Current Students</h3>
+                        <p className="text-sm text-muted-foreground mb-4">Students currently in this section.</p>
+                        <ScrollArea className="h-80 w-full rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Admission No.</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {studentsLoading ? (
+                                        <TableRow><TableCell colSpan={2} className="text-center">Loading...</TableCell></TableRow>
+                                    ) : assignedStudents.length > 0 ? (
+                                        assignedStudents.map(student => (
+                                            <TableRow key={student.id}>
+                                                <TableCell>{student.fullName}</TableCell>
+                                                <TableCell>{student.admissionNumber}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow><TableCell colSpan={2} className="text-center">No students in this section.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </main>
   )
 }
+
+
+    
