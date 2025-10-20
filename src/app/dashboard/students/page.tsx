@@ -36,13 +36,13 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Sheet,
-  SheetTrigger,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetFooter,
   SheetClose,
+  SheetTrigger,
 } from "@/components/ui/sheet"
 import {
   Select,
@@ -60,7 +60,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from 'date-fns';
 
 const studentFormSchema = z.object({
@@ -112,6 +112,28 @@ export default function StudentsPage() {
     },
   });
 
+  useEffect(() => {
+    if (isSheetOpen) {
+      const newAdmissionNumber = `ADM-${Date.now()}`;
+      form.reset({
+        admissionNumber: newAdmissionNumber,
+        admissionDate: format(new Date(), 'yyyy-MM-dd'),
+        fullName: "",
+        pen: "",
+        dateOfBirth: "",
+        parentGuardianName: "",
+        motherName: "",
+        address: "",
+        aadhaarNumber: "",
+        bankAccountNumber: "",
+        bankName: "",
+        ifscCode: "",
+        classSectionId: "",
+      });
+    }
+  }, [isSheetOpen, form]);
+
+
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
     if (!firestore || !schoolId) {
       toast({
@@ -123,13 +145,13 @@ export default function StudentsPage() {
     }
 
     const studentsRef = collection(firestore, `schools/${schoolId}/students`);
-    const studentData = {
-      ...values,
+    const { ...studentData } = values;
+
+    addDocumentNonBlocking(studentsRef, {
+      ...studentData,
       schoolId: schoolId,
       status: 'Active', // Default status
-    };
-
-    addDocumentNonBlocking(studentsRef, studentData);
+    });
     
     toast({
       title: "Student Added",
@@ -184,7 +206,7 @@ export default function StudentsPage() {
                             <FormItem>
                               <FormLabel>Admission Number</FormLabel>
                               <FormControl>
-                                <Input placeholder="e.g., 2024001" {...field} />
+                                <Input placeholder="e.g., ADM-12345" {...field} disabled />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -449,5 +471,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-    
