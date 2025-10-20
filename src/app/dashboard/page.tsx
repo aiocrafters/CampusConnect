@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -20,6 +21,14 @@ import { collection, query, limit, orderBy } from "firebase/firestore"
 import { Users, BookUser, School, ClipboardCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Student, Teacher } from "@/lib/types";
+
+interface ClassSection {
+  id: string;
+  className: string;
+  sectionName: string;
+  classInchargeId?: string;
+}
+
 
 export default function Dashboard() {
   const { user, isUserLoading, firestore } = useFirebase();
@@ -49,7 +58,7 @@ export default function Dashboard() {
   const { data: recentStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
   const { data: allStudents, isLoading: allStudentsLoading } = useCollection<Student>(allStudentsQuery);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
-  const { data: classes, isLoading: classesLoading } = useCollection(classesQuery);
+  const { data: allClassSections, isLoading: classesLoading } = useCollection<ClassSection>(classesQuery);
   
   // For now, pending queries are hardcoded as it requires more complex logic
   const pendingQueries = 0;
@@ -57,9 +66,15 @@ export default function Dashboard() {
   const stats = [
     { title: "Total Students", value: allStudents?.length ?? 0, icon: Users, isLoading: allStudentsLoading },
     { title: "Total Teachers", value: teachers?.length ?? 0, icon: BookUser, isLoading: teachersLoading },
-    { title: "Classes", value: classes?.length ?? 0, icon: School, isLoading: classesLoading },
+    { title: "Classes", value: allClassSections?.length ?? 0, icon: School, isLoading: classesLoading },
     { title: "Pending Queries", value: pendingQueries, icon: ClipboardCheck, isLoading: false },
   ]
+  
+  const getTeacherName = (teacherId?: string) => {
+    if (!teachers || !teacherId) return "Not Assigned";
+    return teachers.find(t => t.id === teacherId)?.name || "Not Assigned";
+  };
+
 
   if (isUserLoading) {
     return <div>Loading...</div>
@@ -81,7 +96,6 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                     {stat.isLoading ? <div className="text-2xl font-bold animate-pulse">...</div> : <div className="text-2xl font-bold">{stat.value}</div>}
-                    {/* <p className="text-xs text-muted-foreground">{stat.change}</p> */}
                 </CardContent>
             </Card>
         ))}
@@ -98,7 +112,6 @@ export default function Dashboard() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Name</TableHead>
-                            <TableHead>Class</TableHead>
                             <TableHead>Parent</TableHead>
                             <TableHead>Status</TableHead>
                         </TableRow>
@@ -106,13 +119,12 @@ export default function Dashboard() {
                     <TableBody>
                         {studentsLoading && Array.from({length: 5}).map((_, i) => (
                             <TableRow key={i}>
-                                <TableCell colSpan={4} className="text-center">Loading...</TableCell>
+                                <TableCell colSpan={3} className="text-center">Loading...</TableCell>
                             </TableRow>
                         ))}
                         {recentStudents && recentStudents.map((student) => (
                             <TableRow key={student.id}>
                                 <TableCell className="font-medium">{student.fullName}</TableCell>
-                                <TableCell>{student.classSectionId}</TableCell>
                                 <TableCell>{student.parentGuardianName}</TableCell>
                                 <TableCell>
                                     <Badge variant={'default'} className="bg-green-500 hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-white">
@@ -123,7 +135,7 @@ export default function Dashboard() {
                         ))}
                          {recentStudents?.length === 0 && !studentsLoading && (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center">No recent students found.</TableCell>
+                                <TableCell colSpan={3} className="text-center">No recent students found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -132,32 +144,34 @@ export default function Dashboard() {
         </Card>
         <Card>
             <CardHeader>
-                <CardTitle>Teacher Overview</CardTitle>
-                <CardDescription>A summary of teachers and their class assignments.</CardDescription>
+                <CardTitle>Sections Overview</CardTitle>
+                <CardDescription>A summary of all class sections and their incharges.</CardDescription>
             </CardHeader>
             <CardContent>
                  <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Teacher</TableHead>
-                            <TableHead>Contact</TableHead>
+                            <TableHead>Class</TableHead>
+                            <TableHead>Section</TableHead>
+                            <TableHead>Incharge Teacher</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {teachersLoading && Array.from({length: 5}).map((_, i) => (
+                        {(classesLoading || teachersLoading) && Array.from({length: 5}).map((_, i) => (
                              <TableRow key={i}>
-                                <TableCell colSpan={2} className="text-center">Loading...</TableCell>
+                                <TableCell colSpan={3} className="text-center">Loading...</TableCell>
                             </TableRow>
                         ))}
-                        {teachers && teachers.slice(0, 5).map((teacher) => (
-                            <TableRow key={teacher.id}>
-                                <TableCell className="font-medium">{teacher.name}</TableCell>
-                                <TableCell>{teacher.contactDetails}</TableCell>
+                        {allClassSections && allClassSections.map((section) => (
+                            <TableRow key={section.id}>
+                                <TableCell className="font-medium">{section.className}</TableCell>
+                                <TableCell>{section.sectionName}</TableCell>
+                                <TableCell>{getTeacherName(section.classInchargeId)}</TableCell>
                             </TableRow>
                         ))}
-                         {teachers?.length === 0 && !teachersLoading && (
+                         {allClassSections?.length === 0 && !classesLoading && (
                             <TableRow>
-                                <TableCell colSpan={2} className="text-center">No teachers found.</TableCell>
+                                <TableCell colSpan={3} className="text-center">No sections found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
