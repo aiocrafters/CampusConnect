@@ -2,9 +2,9 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { PlusCircle, Edit, Trash2, Users } from "lucide-react"
+import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, writeBatch } from "firebase/firestore"
+import { collection, query, doc, writeBatch, updateDoc } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -33,13 +33,9 @@ import {
 } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import type { Teacher, Student } from "@/lib/types"
-import { Badge } from "@/components/ui/badge"
 
-// Based on backend.json
 interface ClassSection {
     id: string;
     schoolId: string;
@@ -67,8 +63,6 @@ export default function ClassesPage() {
   const [selectedSection, setSelectedSection] = useState<ClassSection | null>(null);
   const [isManageSectionsDialogOpen, setIsManageSectionsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isManageStudentsDialogOpen, setIsManageStudentsDialogOpen] = useState(false);
-  const [studentsToAssign, setStudentsToAssign] = useState<string[]>([]);
 
   // Fetch all class sections for the school
   const classSectionsQuery = useMemoFirebase(() => {
@@ -84,28 +78,27 @@ export default function ClassesPage() {
   }, [firestore, schoolId]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
 
-    // Fetch all students for the school
+  // Fetch all students for the school
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/students`));
   }, [firestore, schoolId]);
   const { data: allStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
 
-
   const sectionsForSelectedClass = useMemo(() => {
     if (!selectedClass || !allClassSections) return [];
     return allClassSections.filter(section => section.className === selectedClass);
   }, [selectedClass, allClassSections]);
 
-  const { unassignedStudents, assignedStudents } = useMemo(() => {
-    if (!allStudents || !selectedSection) {
-      return { unassignedStudents: [], assignedStudents: [] };
-    }
-    const assigned = allStudents.filter(student => student.classSectionId === selectedSection.id);
-    const unassigned = allStudents.filter(student => student.classSectionId !== selectedSection.id);
-    return { unassignedStudents: unassigned, assignedStudents: assigned };
-  }, [allStudents, selectedSection]);
+  const studentsForSelectedClass = useMemo(() => {
+    if (!selectedClass || !allStudents || !allClassSections) return [];
+    
+    const sectionIdsOfClass = allClassSections
+        .filter(s => s.className === selectedClass)
+        .map(s => s.id);
 
+    return allStudents.filter(student => sectionIdsOfClass.includes(student.classSectionId));
+  }, [selectedClass, allStudents, allClassSections]);
 
   const form = useForm<z.infer<typeof sectionFormSchema>>({
     resolver: zodResolver(sectionFormSchema),
@@ -152,12 +145,6 @@ export default function ClassesPage() {
   const handleDeleteSection = (section: ClassSection) => {
     setSelectedSection(section);
     setIsDeleteDialogOpen(true);
-  };
-
-  const handleManageStudents = (section: ClassSection) => {
-    setSelectedSection(section);
-    setIsManageStudentsDialogOpen(true);
-    setStudentsToAssign([]);
   };
 
   const getTeacherName = (teacherId?: string) => {
@@ -208,32 +195,24 @@ export default function ClassesPage() {
     setSelectedSection(null);
   }
 
-  const getSectionsForClass = (className: string) => {
-    if (!allClassSections) return [];
-    return allClassSections.filter(section => section.className === className);
-  };
-
-  const handleAssignStudents = async () => {
-    if (!firestore || !schoolId || !selectedSection || studentsToAssign.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No students selected or section not found." });
-      return;
-    }
+  const handleStudentSectionChange = async (studentId: string, newSectionId: string) => {
+    if (!firestore || !schoolId) return;
+    const studentRef = doc(firestore, `schools/${schoolId}/students`, studentId);
     try {
-        const batch = writeBatch(firestore);
-        studentsToAssign.forEach(studentId => {
-            const studentRef = doc(firestore, `schools/${schoolId}/students`, studentId);
-            batch.update(studentRef, { classSectionId: selectedSection.id });
-        });
-        await batch.commit();
-        toast({ title: "Students Assigned", description: `${studentsToAssign.length} student(s) have been assigned to section ${selectedSection.sectionName}.` });
-        setIsManageStudentsDialogOpen(false);
-        setStudentsToAssign([]);
+      await updateDoc(studentRef, { classSectionId: newSectionId });
+      toast({
+        title: "Section Updated",
+        description: `Student's section has been successfully updated.`,
+      });
     } catch (error) {
-        console.error("Error assigning students: ", error);
-        toast({ variant: "destructive", title: "Assignment Failed", description: "Could not assign students to the section." });
+      console.error("Error updating student section: ", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Could not update the student's section.",
+      });
     }
   };
-
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -241,69 +220,93 @@ export default function ClassesPage() {
         <CardHeader>
           <CardTitle>Class &amp; Section Management</CardTitle>
           <CardDescription>
-            Manage sections for each class and assign an in-charge teacher.
+            Choose a class to manage sections and assign students.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Serial No.</TableHead>
-                <TableHead>Class Name</TableHead>
-                <TableHead>Sections</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {classSectionsLoading && predefinedClasses.map((className, index) => (
-                <TableRow key={className}>
-                  <TableCell className="font-medium">{index + 1}</TableCell>
-                  <TableCell>{className}</TableCell>
-                  <TableCell>Loading...</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" disabled>
-                      Manage Sections
+        <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+                <Select onValueChange={setSelectedClass} value={selectedClass || ''}>
+                    <SelectTrigger className="w-full sm:w-[280px]">
+                        <SelectValue placeholder="Choose a class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {predefinedClasses.map(className => (
+                            <SelectItem key={className} value={className}>Class {className}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {selectedClass && (
+                     <Button variant="outline" onClick={() => handleManageSections(selectedClass)}>
+                        Manage Sections for Class {selectedClass}
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!classSectionsLoading && predefinedClasses.map((className, index) => {
-                const sections = getSectionsForClass(className);
-                return (
-                    <TableRow key={className}>
-                        <TableCell className="font-medium">{index + 1}</TableCell>
-                        <TableCell>{className}</TableCell>
-                        <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                                {sections.length > 0 ? (
-                                    sections.map(section => (
-                                        <Badge key={section.id} variant="secondary">{section.sectionName}</Badge>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">No Sections</span>
+                )}
+            </div>
+
+            {selectedClass && (
+                <div>
+                    <h3 className="text-lg font-semibold mb-2">Students in Class {selectedClass}</h3>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Student Name</TableHead>
+                                    <TableHead>Admission No.</TableHead>
+                                    <TableHead className="w-[250px]">Assign Section</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {studentsLoading && (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center">Loading students...</TableCell>
+                                    </TableRow>
                                 )}
-                            </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button variant="outline" onClick={() => handleManageSections(className)}>
-                            Manage Sections
-                            </Button>
-                        </TableCell>
-                    </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                                {!studentsLoading && studentsForSelectedClass.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center">No students found for this class.</TableCell>
+                                    </TableRow>
+                                )}
+                                {studentsForSelectedClass.map(student => (
+                                    <TableRow key={student.id}>
+                                        <TableCell>{student.fullName}</TableCell>
+                                        <TableCell>{student.admissionNumber}</TableCell>
+                                        <TableCell>
+                                             <Select 
+                                                value={student.classSectionId}
+                                                onValueChange={(newSectionId) => handleStudentSectionChange(student.id, newSectionId)}
+                                                disabled={sectionsForSelectedClass.length === 0}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Assign a section" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {sectionsForSelectedClass.length > 0 ? (
+                                                        sectionsForSelectedClass.map(section => (
+                                                            <SelectItem key={section.id} value={section.id}>
+                                                                {section.sectionName}
+                                                            </SelectItem>
+                                                        ))
+                                                    ) : (
+                                                        <SelectItem value="-" disabled>No sections available</SelectItem>
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+            )}
         </CardContent>
       </Card>
       
-      {/* Dialog to Manage Sections for a specific class */}
       <Dialog open={isManageSectionsDialogOpen} onOpenChange={setIsManageSectionsDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Manage Sections for Class {selectedClass}</DialogTitle>
             <DialogDescription>
-              Add, edit, or remove sections for this class and manage students.
+              Add, edit, or remove sections for this class. Students can be assigned to these sections.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -339,10 +342,6 @@ export default function ClassesPage() {
                             <TableCell>{section.sectionName}</TableCell>
                             <TableCell>{getTeacherName(section.classInchargeId)}</TableCell>
                             <TableCell className="text-right">
-                                <Button variant="outline" size="sm" className="mr-2" onClick={() => handleManageStudents(section)}>
-                                    <Users className="h-4 w-4 mr-2" />
-                                    Manage Students
-                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => handleEditSection(section)}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
@@ -363,7 +362,6 @@ export default function ClassesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Sheet to Add/Edit a Section */}
       <Sheet open={isSectionSheetOpen} onOpenChange={setIsSectionSheetOpen}>
         <SheetContent>
             <SheetHeader>
@@ -423,13 +421,12 @@ export default function ClassesPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Dialog for Delete Confirmation */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete the section <span className="font-semibold">{selectedSection?.sectionName}</span> from Class {selectedClass}.
+              This action cannot be undone. This will permanently delete the section <span className="font-semibold">{selectedSection?.sectionName}</span> from Class {selectedClass}. Any students in this section will need to be reassigned.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -442,92 +439,6 @@ export default function ClassesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-        {/* Dialog to Manage Students in a Section */}
-        <Dialog open={isManageStudentsDialogOpen} onOpenChange={setIsManageStudentsDialogOpen}>
-            <DialogContent className="sm:max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Manage Students for {selectedClass} - Section {selectedSection?.sectionName}</DialogTitle>
-                    <DialogDescription>
-                        Assign students to this section or view current students.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-6 py-4">
-                    <div>
-                        <h3 className="text-lg font-medium mb-2">Assign Students</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Select students from the list below to add them to this section.</p>
-                        <ScrollArea className="h-72 w-full rounded-md border">
-                            <div className="p-4">
-                                {studentsLoading ? (
-                                    <p>Loading students...</p>
-                                ) : unassignedStudents.length > 0 ? (
-                                    unassignedStudents.map(student => (
-                                        <div key={student.id} className="flex items-center space-x-2 mb-2">
-                                            <Checkbox
-                                                id={`student-${student.id}`}
-                                                checked={studentsToAssign.includes(student.id)}
-                                                onCheckedChange={(checked) => {
-                                                    setStudentsToAssign(prev =>
-                                                        checked ? [...prev, student.id] : prev.filter(id => id !== student.id)
-                                                    );
-                                                }}
-                                            />
-                                            <label
-                                                htmlFor={`student-${student.id}`}
-                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                            >
-                                                {student.fullName} (Adm. No: {student.admissionNumber})
-                                            </label>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-muted-foreground text-center">No students available to assign.</p>
-                                )}
-                            </div>
-                        </ScrollArea>
-                        <Button className="mt-4 w-full" disabled={studentsToAssign.length === 0} onClick={handleAssignStudents}>
-                            Assign {studentsToAssign.length > 0 ? studentsToAssign.length : ''} Student(s)
-                        </Button>
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-medium mb-2">Current Students</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Students currently in this section.</p>
-                        <ScrollArea className="h-80 w-full rounded-md border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Admission No.</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {studentsLoading ? (
-                                        <TableRow><TableCell colSpan={2} className="text-center">Loading...</TableCell></TableRow>
-                                    ) : assignedStudents.length > 0 ? (
-                                        assignedStudents.map(student => (
-                                            <TableRow key={student.id}>
-                                                <TableCell>{student.fullName}</TableCell>
-                                                <TableCell>{student.admissionNumber}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow><TableCell colSpan={2} className="text-center">No students in this section.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outline">Close</Button>
-                    </DialogClose>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
     </main>
   )
 }
-
-
-    

@@ -75,6 +75,12 @@ import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { Label } from "@/components/ui/label"
 
+interface ClassSection {
+  id: string;
+  className: string;
+  sectionName: string;
+}
+
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
   admissionNumber: z.string().min(1, "Admission Number is required."),
@@ -89,7 +95,7 @@ const studentFormSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
-  classSectionId: z.string().min(1, "Admission Class is required"),
+  classSectionId: z.string().min(1, "Admission Class/Section is required"),
 });
 
 
@@ -111,7 +117,21 @@ export default function StudentsPage() {
     return query(collection(firestore, `schools/${schoolId}/students`));
   }, [firestore, schoolId]);
 
+  const classSectionsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/classSections`));
+  }, [firestore, schoolId]);
+
   const { data: students, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+  const { data: classSections, isLoading: classSectionsLoading } = useCollection<ClassSection>(classSectionsQuery);
+
+
+  const getSectionName = (sectionId: string) => {
+    if (!classSections) return "N/A";
+    const section = classSections.find(s => s.id === sectionId);
+    return section ? `${section.className} - ${section.sectionName}` : "Not Assigned";
+  };
+
 
   const nextAdmissionNumber = useMemo(() => {
     if (!students || students.length === 0) {
@@ -487,19 +507,23 @@ export default function StudentsPage() {
                           name="classSectionId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Admission Class</FormLabel>
+                              <FormLabel>Admission Class & Section</FormLabel>
                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a class" />
+                                  <SelectTrigger disabled={classSectionsLoading}>
+                                    <SelectValue placeholder={classSectionsLoading ? "Loading..." : "Select a class and section"} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {classOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
+                                    {!classSectionsLoading && classSections && classSections.length > 0 ? (
+                                        classSections.map((section) => (
+                                            <SelectItem key={section.id} value={section.id}>
+                                            {section.className} - {section.sectionName}
+                                            </SelectItem>
+                                        ))
+                                    ) : (
+                                        <SelectItem value="-" disabled>No sections created yet</SelectItem>
+                                    )}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -542,7 +566,7 @@ export default function StudentsPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Admission Date</TableHead>
                     <TableHead>DOB</TableHead>
-                    <TableHead>Admission Class</TableHead>
+                    <TableHead>Class - Section</TableHead>
                     <TableHead>Father's Name</TableHead>
                     <TableHead>Mother's Name</TableHead>
                     <TableHead>Address</TableHead>
@@ -583,7 +607,7 @@ export default function StudentsPage() {
                     </TableCell>
                     <TableCell>{student.admissionDate}</TableCell>
                     <TableCell>{student.dateOfBirth}</TableCell>
-                    <TableCell>{student.classSectionId}</TableCell>
+                    <TableCell>{getSectionName(student.classSectionId)}</TableCell>
                     <TableCell>{student.parentGuardianName}</TableCell>
                     <TableCell>{student.motherName}</TableCell>
                     <TableCell className="truncate max-w-xs">{student.address}</TableCell>
@@ -649,8 +673,8 @@ export default function StudentsPage() {
                   <span>{selectedStudent.dateOfBirth}</span>
                 </div>
                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Admission Class</span>
-                  <span>{selectedStudent.classSectionId}</span>
+                  <span className="font-semibold text-muted-foreground">Class & Section</span>
+                  <span>{getSectionName(selectedStudent.classSectionId)}</span>
                 </div>
                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                   <span className="font-semibold text-muted-foreground">Father's Name</span>
@@ -756,5 +780,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-    
