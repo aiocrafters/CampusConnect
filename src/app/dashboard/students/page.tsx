@@ -40,7 +40,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet"
@@ -57,16 +56,15 @@ import { useState } from "react"
 
 const studentFormSchema = z.object({
   fullName: z.string().min(2, "Full name is required."),
-  // udiseCode: z.string().optional(), // This should come from the school
+  pen: z.string().optional(),
   dateOfBirth: z.string().min(1, "Date of birth is required."),
   parentGuardianName: z.string().min(2, "Father's name is required."),
   motherName: z.string().optional(),
   address: z.string().min(5, "Address is required."),
   aadhaarNumber: z.string().optional(),
-  // Bank details are not in the Student schema yet, but we can add them later
-  // bankAccountNumber: z.string().optional(),
-  // bankName: z.string().optional(),
-  // ifscCode: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  ifscCode: z.string().optional(),
   classSectionId: z.string().min(1, "Class/Section is required"),
 });
 
@@ -88,11 +86,15 @@ export default function StudentsPage() {
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
       fullName: "",
+      pen: "",
       dateOfBirth: "",
       parentGuardianName: "",
       motherName: "",
       address: "",
       aadhaarNumber: "",
+      bankAccountNumber: "",
+      bankName: "",
+      ifscCode: "",
       classSectionId: "",
     },
   });
@@ -111,8 +113,8 @@ export default function StudentsPage() {
     const studentData = {
       ...values,
       schoolId: schoolId,
+      udiseCode: schoolId, // Assuming schoolId is the UDISE code for now
       status: 'Active', // Default status
-      // These are not in the form but are in the schema
       admissionNumber: `ADM-${Date.now()}`
     };
 
@@ -170,6 +172,19 @@ export default function StudentsPage() {
                               <FormLabel>Full Name</FormLabel>
                               <FormControl>
                                 <Input placeholder="Aarav Sharma" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="pen"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Student PEN</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Personal Education Number" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -235,6 +250,45 @@ export default function StudentsPage() {
                               <FormLabel>Aadhar Number</FormLabel>
                               <FormControl>
                                 <Input placeholder="xxxx-xxxx-xxxx" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="bankAccountNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank Account Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Bank Account Number" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="bankName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Bank Name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="ifscCode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank IFSC Code</FormLabel>
+                              <FormControl>
+                                <Input placeholder="IFSC Code" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -346,5 +400,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-  

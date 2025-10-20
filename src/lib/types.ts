@@ -1,3 +1,4 @@
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -19,6 +20,10 @@ export interface Student {
   address: string;
   aadhaarNumber?: string;
   status: 'Active' | 'Inactive';
+  pen?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  ifscCode?: string;
 }
 
 export interface Teacher {
