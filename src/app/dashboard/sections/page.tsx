@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc } from "firebase/firestore"
+import { collection, query, doc, writeBatch } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -90,6 +90,30 @@ export default function SectionsPage() {
       sectionInchargeId: "",
     },
   });
+
+  // Effect to create default section "A" if a class has no sections
+  useEffect(() => {
+    if (!firestore || !schoolId || !selectedClass || classSectionsLoading || !allClassSections) return;
+    
+    const sectionsExist = allClassSections.some(s => s.className === selectedClass);
+    if (!sectionsExist) {
+        const sectionId = doc(collection(firestore, `schools/${schoolId}/classSections`)).id;
+        const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, sectionId);
+        const newSection: ClassSection = {
+            id: sectionId,
+            schoolId,
+            className: selectedClass,
+            sectionName: "A",
+            sectionInchargeId: ""
+        };
+        setDocumentNonBlocking(sectionDocRef, newSection, { merge: false });
+        toast({
+            title: `Default Section Created`,
+            description: `Section "A" was automatically created for Class ${selectedClass}.`
+        });
+    }
+  }, [selectedClass, allClassSections, classSectionsLoading, firestore, schoolId, toast]);
+
 
   useEffect(() => {
     if (isSectionSheetOpen) {
