@@ -2,9 +2,9 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { PlusCircle, Edit, Trash2, Save, X, BookOpen, ChevronRight, NotebookText } from "lucide-react"
+import { PlusCircle, Edit, Trash2, BookOpen } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, where, writeBatch, collectionGroup } from "firebase/firestore"
+import { collection, query, doc, where, collectionGroup } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -25,7 +25,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetFooter,
@@ -34,9 +33,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import type { Teacher, Student } from "@/lib/types"
+import type { Teacher } from "@/lib/types"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
 
 // Data types
 interface ClassSection {
@@ -58,14 +56,6 @@ interface Subject {
     subjectName: string;
     teacherId: string;
     maxMarks: number;
-}
-
-interface PerformanceRecord {
-    id: string;
-    studentId: string;
-    subjectId: string;
-    marks: number;
-    schoolId: string;
 }
 
 // Zod schemas
@@ -90,9 +80,6 @@ export default function ExamsPage() {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [isExamSheetOpen, setIsExamSheetOpen] = useState(false);
   const [isSubjectSheetOpen, setIsSubjectSheetOpen] = useState(false);
-  const [isMarksSheetOpen, setIsMarksSheetOpen] = useState(false);
-  const [selectedSubjectForMarks, setSelectedSubjectForMarks] = useState<Subject | null>(null);
-  const [marks, setMarks] = useState<Record<string, number | string>>({});
   const [isDeleteExamDialogOpen, setIsDeleteExamDialogOpen] = useState(false);
   const [isDeleteSubjectDialogOpen, setIsDeleteSubjectDialogOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
@@ -134,24 +121,6 @@ export default function ExamsPage() {
   }, [firestore, schoolId]);
   const { data: teachers } = useCollection<Teacher>(teachersQuery);
 
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId || !selectedSectionId) return null;
-    return query(collection(firestore, `schools/${schoolId}/students`), where("classSectionId", "==", selectedSectionId));
-  }, [firestore, schoolId, selectedSectionId]);
-  const { data: students, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
-  
-  const performanceRecordsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId || !selectedSubjectForMarks) return null;
-    // This is a collection group query to get all performance records for a subject across all students
-    return query(
-        collectionGroup(firestore, 'performanceRecords'),
-        where("schoolId", "==", schoolId),
-        where("subjectId", "==", selectedSubjectForMarks.id)
-    );
-  }, [firestore, schoolId, selectedSubjectForMarks]);
-  const { data: performanceRecords } = useCollection<PerformanceRecord>(performanceRecordsQuery);
-
-
   // Memoized data transformations
   const classOptions = useMemo(() => {
     if (!allClassSections) return [];
@@ -171,16 +140,6 @@ export default function ExamsPage() {
     return allClassSections.filter(s => s.className === selectedClass);
   }, [allClassSections, selectedClass]);
   
-  useEffect(() => {
-    if (selectedSubjectForMarks && students) {
-        const initialMarks: Record<string, number | string> = {};
-        students.forEach(student => {
-            const record = performanceRecords?.find(pr => pr.studentId === student.id);
-            initialMarks[student.id] = record ? record.marks : '';
-        });
-        setMarks(initialMarks);
-    }
-  }, [selectedSubjectForMarks, performanceRecords, students]);
 
   // Handlers
   const handleOpenExamSheet = (exam: Exam | null) => {
@@ -193,12 +152,6 @@ export default function ExamsPage() {
     setSelectedExam(exam);
     subjectForm.reset({ subjectName: "", teacherId: "", maxMarks: 100 });
     setIsSubjectSheetOpen(true);
-  };
-  
-  const handleOpenMarksSheet = (subject: Subject, exam: Exam) => {
-    setSelectedExam(exam);
-    setSelectedSubjectForMarks(subject);
-    setIsMarksSheetOpen(true);
   };
 
   const onExamSubmit = (values: z.infer<typeof examFormSchema>) => {
@@ -268,54 +221,15 @@ export default function ExamsPage() {
     setSubjectToDelete(null);
   }
 
-  const onMarksSubmit = async () => {
-    if (!firestore || !schoolId || !selectedSubjectForMarks || !students) return;
-
-    const batch = writeBatch(firestore);
-    
-    students.forEach(student => {
-        const studentMark = marks[student.id];
-        if (studentMark !== '' && studentMark !== undefined && studentMark !== null) {
-             const record = performanceRecords?.find(pr => pr.studentId === student.id);
-             const marksAsNumber = Number(studentMark);
-             const recordPath = `schools/${schoolId}/students/${student.id}/performanceRecords`;
-
-             if (isNaN(marksAsNumber)) return;
-
-             if (record) { // Update existing record
-                const recordRef = doc(firestore, recordPath, record.id);
-                batch.update(recordRef, { marks: marksAsNumber });
-             } else { // Create new record
-                const newRecordRef = doc(collection(firestore, recordPath));
-                batch.set(newRecordRef, {
-                    id: newRecordRef.id,
-                    studentId: student.id,
-                    subjectId: selectedSubjectForMarks.id,
-                    marks: marksAsNumber,
-                    schoolId: schoolId,
-                    examId: selectedExam?.id,
-                    classSectionId: selectedSectionId,
-                });
-             }
-        }
-    });
-
-    try {
-        await batch.commit();
-        toast({ title: "Marks Saved", description: "Student marks have been successfully saved." });
-        setIsMarksSheetOpen(false);
-    } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: "Error", description: "Failed to save marks." });
-    }
-  };
-
   const getTeacherName = (teacherId: string) => {
     return teachers?.find(t => t.id === teacherId)?.name || "Unknown Teacher";
   };
   
   const getSubjectsForExam = (examId: string) => {
-    return subjects?.filter(s => s.examId === examId) || [];
+    if (!subjects) return [];
+    // Ensure that subjects are loaded for the currently selected exam
+    if (selectedExam?.id !== examId) return [];
+    return subjects.filter(s => s.examId === examId);
   }
 
   return (
@@ -324,7 +238,7 @@ export default function ExamsPage() {
         <CardHeader>
           <CardTitle>Exam & Performance Management</CardTitle>
           <CardDescription>
-            Create exams, manage subjects, and record student performance for each class section.
+            Create exams and manage subjects for each class section.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -369,15 +283,15 @@ export default function ExamsPage() {
                 }}>
                   {exams.map(exam => (
                     <AccordionItem value={exam.id} key={exam.id}>
-                        <div className="flex items-center w-full">
-                            <AccordionTrigger>
-                                <span className="text-lg font-medium">{exam.examName}</span>
-                            </AccordionTrigger>
-                            <div className="ml-auto pr-4 flex items-center gap-2">
-                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenExamSheet(exam); }}><Edit className="h-4 w-4 mr-2" /> Edit</Button>
-                                <Button variant="ghost" size="sm" className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteExam(exam); }}><Trash2 className="h-4 w-4 mr-2" /> Delete</Button>
-                            </div>
+                      <div className="flex items-center w-full">
+                        <AccordionTrigger>
+                          <span className="text-lg font-medium">{exam.examName}</span>
+                        </AccordionTrigger>
+                        <div className="ml-auto pr-4 flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenExamSheet(exam); }}><Edit className="h-4 w-4 mr-2" /> Edit</Button>
+                            <Button variant="ghost" size="sm" className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteExam(exam); }}><Trash2 className="h-4 w-4 mr-2" /> Delete</Button>
                         </div>
+                      </div>
                       <AccordionContent>
                         <div className="flex justify-between items-center mb-2 px-4">
                             <h4 className="font-semibold">Subjects</h4>
@@ -385,7 +299,7 @@ export default function ExamsPage() {
                                 <PlusCircle className="h-4 w-4 mr-2" /> Add Subject
                             </Button>
                         </div>
-                        {subjectsLoading ? <p className="px-4">Loading subjects...</p> : (
+                        {subjectsLoading && selectedExam?.id === exam.id ? <p className="px-4">Loading subjects...</p> : (
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -402,9 +316,6 @@ export default function ExamsPage() {
                                             <TableCell>{getTeacherName(subject.teacherId)}</TableCell>
                                             <TableCell>{subject.maxMarks}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="secondary" size="sm" onClick={() => handleOpenMarksSheet(subject, exam)}>
-                                                    <NotebookText className="h-4 w-4 mr-2" /> Enter Marks
-                                                </Button>
                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteSubject(subject)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -515,60 +426,6 @@ export default function ExamsPage() {
                     </SheetFooter>
                 </form>
             </Form>
-        </SheetContent>
-      </Sheet>
-
-      {/* Marks Entry Sheet */}
-       <Sheet open={isMarksSheetOpen} onOpenChange={setIsMarksSheetOpen}>
-        <SheetContent className="sm:max-w-lg">
-            <SheetHeader>
-                <SheetTitle>Enter Marks for {selectedSubjectForMarks?.subjectName}</SheetTitle>
-                <SheetDescription>
-                    Exam: {selectedExam?.examName} | Max Marks: {selectedSubjectForMarks?.maxMarks}
-                </SheetDescription>
-            </SheetHeader>
-            <div className="py-4">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Student Name</TableHead>
-                            <TableHead>Admission No.</TableHead>
-                            <TableHead className="w-[120px]">Marks</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {studentsLoading ? <TableRow><TableCell colSpan={3} className="text-center">Loading students...</TableCell></TableRow> :
-                         students?.map(student => (
-                            <TableRow key={student.id}>
-                                <TableCell>{student.fullName}</TableCell>
-                                <TableCell>{student.admissionNumber}</TableCell>
-                                <TableCell>
-                                    <Input 
-                                        type="number" 
-                                        value={marks[student.id] || ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            const max = selectedSubjectForMarks?.maxMarks || 100;
-                                            if (Number(value) > max) {
-                                                setMarks(prev => ({ ...prev, [student.id]: max }))
-                                            } else {
-                                                setMarks(prev => ({ ...prev, [student.id]: value }))
-                                            }
-                                        }}
-                                        max={selectedSubjectForMarks?.maxMarks}
-                                        min={0}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                         ))
-                        }
-                    </TableBody>
-                </Table>
-            </div>
-            <SheetFooter>
-                <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
-                <Button onClick={onMarksSubmit}>Save Marks</Button>
-            </SheetFooter>
         </SheetContent>
       </Sheet>
 
