@@ -509,7 +509,7 @@ export default function StudentsPage() {
                           name="classSectionId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Admission Class &amp; Section</FormLabel>
+                              <FormLabel>Admission Class</FormLabel>
                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                   <SelectTrigger disabled={classSectionsLoading}>
@@ -799,3 +799,4 @@ export default function StudentsPage() {
 }
 
     
+
