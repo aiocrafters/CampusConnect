@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Sheet,
@@ -61,6 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
@@ -72,6 +74,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect } from "react"
 import { format } from 'date-fns';
+import { Label } from "@/components/ui/label"
 
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
@@ -98,7 +101,10 @@ export default function StudentsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [inactiveReason, setInactiveReason] = useState('');
 
 
   const studentsQuery = useMemoFirebase(() => {
@@ -159,6 +165,13 @@ export default function StudentsPage() {
       }
     }
   }, [isSheetOpen, isEditMode, selectedStudent, form, firestore, schoolId]);
+
+  useEffect(() => {
+    if (isStatusDialogOpen && selectedStudent) {
+      setCurrentStatus(selectedStudent.status);
+      setInactiveReason(selectedStudent.inactiveReason || '');
+    }
+  }, [isStatusDialogOpen, selectedStudent]);
   
   const handleAddNew = () => {
     setIsEditMode(false);
@@ -175,7 +188,12 @@ export default function StudentsPage() {
   const handleView = (student: Student) => {
     setSelectedStudent(student);
     setIsViewDialogOpen(true);
-  }
+  };
+
+  const handleStatusChange = (student: Student) => {
+    setSelectedStudent(student);
+    setIsStatusDialogOpen(true);
+  };
 
 
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
@@ -190,9 +208,10 @@ export default function StudentsPage() {
     
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
 
-    const dataToSave: Omit<Student, 'status'> & { schoolId: string } = {
-      ...values,
-      schoolId: schoolId,
+    // Omit 'udiseCode' if it exists in values, as it's no longer in the schema
+    const { ...dataToSave }: Omit<Student, 'status' | 'schoolId'> & { schoolId: string } = {
+        ...values,
+        schoolId,
     };
     
     if (isEditMode) {
@@ -219,6 +238,25 @@ export default function StudentsPage() {
     form.reset();
     setIsSheetOpen(false);
     setIsEditMode(false);
+    setSelectedStudent(null);
+  }
+
+  async function handleSaveStatus() {
+    if (!firestore || !schoolId || !selectedStudent) {
+      toast({ variant: "destructive", title: "Error", description: "Could not save status." });
+      return;
+    }
+    const studentDocRef = doc(firestore, `schools/${schoolId}/students`, selectedStudent.id);
+    const dataToUpdate: Partial<Student> = {
+      status: currentStatus,
+      inactiveReason: currentStatus === 'Inactive' ? inactiveReason : '',
+    };
+    updateDocumentNonBlocking(studentDocRef, dataToUpdate);
+    toast({
+      title: "Status Updated",
+      description: `${selectedStudent.fullName}'s status has been updated.`,
+    });
+    setIsStatusDialogOpen(false);
     setSelectedStudent(null);
   }
   
@@ -552,6 +590,7 @@ export default function StudentsPage() {
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -638,11 +677,66 @@ export default function StudentsPage() {
                       {selectedStudent.status}
                     </Badge>
                 </div>
+                 {selectedStudent.status === 'Inactive' && selectedStudent.inactiveReason && (
+                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                    <span className="font-semibold text-muted-foreground">Reason</span>
+                    <span>{selectedStudent.inactiveReason}</span>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Student Status</DialogTitle>
+            <DialogDescription>
+              Update the status for {selectedStudent?.fullName}.
+            </DialogDescription>
+          </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  Status
+                </Label>
+                <RadioGroup
+                  defaultValue={selectedStudent?.status}
+                  onValueChange={(value: 'Active' | 'Inactive') => setCurrentStatus(value)}
+                  className="col-span-3 flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Active" id="active" />
+                    <Label htmlFor="active">Active</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Inactive" id="inactive" />
+                    <Label htmlFor="inactive">Inactive</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              {currentStatus === 'Inactive' && (
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="reason" className="text-right">
+                      Reason
+                    </Label>
+                    <Textarea
+                      id="reason"
+                      value={inactiveReason}
+                      onChange={(e) => setInactiveReason(e.target.value)}
+                      className="col-span-3"
+                      placeholder="Enter reason for inactivation"
+                    />
+                 </div>
+              )}
+            </div>
+          <DialogFooter>
+             <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>Cancel</Button>
+             <Button onClick={handleSaveStatus}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

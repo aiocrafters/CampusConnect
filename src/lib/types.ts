@@ -22,6 +22,7 @@ export interface Student {
   address: string;
   aadhaarNumber?: string;
   status: 'Active' | 'Inactive';
+  inactiveReason?: string;
   pen?: string;
   bankAccountNumber?: string;
   bankName?: string;
