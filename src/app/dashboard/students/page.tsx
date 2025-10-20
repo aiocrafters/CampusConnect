@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Sheet,
+  SheetTrigger,
   SheetContent,
   SheetDescription,
   SheetHeader,
