@@ -53,7 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase"
+import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
 import type { Student } from "@/lib/types"
 import { z } from "zod"
@@ -65,7 +65,7 @@ import { useState, useEffect } from "react"
 import { format } from 'date-fns';
 
 const studentFormSchema = z.object({
-  id: z.string(),
+  id: z.string().min(1, "Student ID is required."),
   admissionNumber: z.string().min(1, "Admission Number is required."),
   admissionDate: z.string().min(1, "Admission Date is required."),
   fullName: z.string().min(2, "Full name is required."),
@@ -147,43 +147,16 @@ export default function StudentsPage() {
       });
       return;
     }
-
-    const studentsRef = collection(firestore, `schools/${schoolId}/students`);
     
-    // The student ID is now in `values.id`, which we will use as the document ID
-    const studentDocRef = doc(studentsRef, values.id);
+    const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
 
-    const { ...studentData } = values;
-
-    // We can use setDocumentNonBlocking now since we have a specific doc ref
-    // Note: setDocumentNonBlocking is not in the provided context, so using a workaround.
-    // Let's assume addDocumentNonBlocking can take a ref. The existing implementation of `addDocumentNonBlocking` creates a new doc.
-    // So we'll have to create a new student object without id and let firestore create one. But then we can't show it in the form.
-    // The user wants to see the student ID.
-    // The best way is to generate an ID client side, and use it.
-    
     const dataToSave = {
-      admissionNumber: studentData.admissionNumber,
-      admissionDate: studentData.admissionDate,
-      fullName: studentData.fullName,
-      pen: studentData.pen,
-      dateOfBirth: studentData.dateOfBirth,
-      parentGuardianName: studentData.parentGuardianName,
-      motherName: studentData.motherName,
-      address: studentData.address,
-      aadhaarNumber: studentData.aadhaarNumber,
-      bankAccountNumber: studentData.bankAccountNumber,
-      bankName: studentData.bankName,
-      ifscCode: studentData.ifscCode,
-      classSectionId: studentData.classSectionId,
+      ...values,
       schoolId: schoolId,
       status: 'Active',
     };
     
-    // Since we can't use setDoc with a specific ID via a non-blocking helper from context,
-    // we revert to addDoc which creates an ID automatically.
-    // The ID in the form is for display purposes. The actual ID will be assigned by Firestore.
-     addDocumentNonBlocking(collection(firestore, `schools/${schoolId}/students`), dataToSave);
+    setDocumentNonBlocking(studentDocRef, dataToSave, { merge: false });
     
     toast({
       title: "Student Added",
@@ -454,6 +427,7 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Student ID</TableHead>
                     <TableHead>Admission No.</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Status</TableHead>
@@ -467,20 +441,21 @@ export default function StudentsPage() {
                 <TableBody>
                   {studentsLoading && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         Loading student data...
                       </TableCell>
                     </TableRow>
                   )}
                   {!studentsLoading && students?.length === 0 && (
                      <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         No students found. Add one to get started.
                       </TableCell>
                     </TableRow>
                   )}
                   {students && students.map(student => (
                   <TableRow key={student.id}>
+                    <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
                     <TableCell className="font-medium">{student.admissionNumber}</TableCell>
                     <TableCell>{student.fullName}</TableCell>
                     <TableCell>
