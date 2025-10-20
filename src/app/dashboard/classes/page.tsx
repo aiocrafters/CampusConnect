@@ -18,11 +18,7 @@ interface ClassSection {
     sectionName: string;
 }
 
-interface MasterClass {
-    id: string;
-    schoolId: string;
-    className: string;
-}
+const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
 export default function ClassesPage() {
   const { user, firestore } = useFirebase();
@@ -30,13 +26,6 @@ export default function ClassesPage() {
   const { toast } = useToast();
 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-
-  // Fetch all master classes for the school
-  const masterClassesQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/masterClasses`));
-  }, [firestore, schoolId]);
-  const { data: masterClasses, isLoading: masterClassesLoading } = useCollection<MasterClass>(masterClassesQuery);
 
   // Fetch all class sections for the school
   const classSectionsQuery = useMemoFirebase(() => {
@@ -81,10 +70,6 @@ export default function ClassesPage() {
     }
   };
 
-  const classOptions = useMemo(() => {
-    if (!masterClasses) return [];
-    return [...masterClasses].sort((a, b) => a.className.localeCompare(b.className));
-  }, [masterClasses]);
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -102,13 +87,9 @@ export default function ClassesPage() {
                         <SelectValue placeholder="Choose a class" />
                     </SelectTrigger>
                     <SelectContent>
-                        {masterClassesLoading ? (
-                            <SelectItem value="loading" disabled>Loading classes...</SelectItem>
-                        ) : (
-                            classOptions.map(mc => (
-                                <SelectItem key={mc.id} value={mc.className}>Class {mc.className}</SelectItem>
-                            ))
-                        )}
+                        {classOptions.map(mc => (
+                            <SelectItem key={mc} value={mc}>Class {mc}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>

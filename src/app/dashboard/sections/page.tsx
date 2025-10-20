@@ -44,17 +44,14 @@ interface ClassSection {
     classInchargeId?: string;
 }
 
-interface MasterClass {
-    id: string;
-    schoolId: string;
-    className: string;
-}
-
 const sectionFormSchema = z.object({
   id: z.string().optional(),
   sectionName: z.string().min(1, "Section name is required."),
   classInchargeId: z.string().optional(),
 });
+
+const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
+
 
 export default function SectionsPage() {
   const { user, firestore } = useFirebase();
@@ -66,13 +63,6 @@ export default function SectionsPage() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<ClassSection | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
-  // Fetch all master classes for the school
-  const masterClassesQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/masterClasses`));
-  }, [firestore, schoolId]);
-  const { data: masterClasses, isLoading: masterClassesLoading } = useCollection<MasterClass>(masterClassesQuery);
 
   // Fetch all class sections for the school
   const classSectionsQuery = useMemoFirebase(() => {
@@ -188,19 +178,6 @@ export default function SectionsPage() {
     setSelectedSection(null);
   }
 
-  const classOptions = useMemo(() => {
-    if (!masterClasses) return [];
-    return masterClasses.sort((a,b) => {
-        const aIsNum = !isNaN(parseInt(a.className));
-        const bIsNum = !isNaN(parseInt(b.className));
-
-        if(aIsNum && bIsNum) return parseInt(a.className) - parseInt(b.className);
-        if(aIsNum) return -1;
-        if(bIsNum) return 1;
-        return a.className.localeCompare(b.className);
-    });
-  }, [masterClasses]);
-
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
       <Card>
@@ -217,13 +194,9 @@ export default function SectionsPage() {
                         <SelectValue placeholder="Choose a class" />
                     </SelectTrigger>
                     <SelectContent>
-                        {masterClassesLoading ? (
-                            <SelectItem value="loading" disabled>Loading classes...</SelectItem>
-                        ) : (
-                            classOptions.map(mc => (
-                                <SelectItem key={mc.id} value={mc.className}>Class {mc.className}</SelectItem>
-                            ))
-                        )}
+                        {classOptions.map(mc => (
+                            <SelectItem key={mc} value={mc}>Class {mc}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
                  <Button size="sm" className="h-9 gap-1" onClick={handleAddSection}>
