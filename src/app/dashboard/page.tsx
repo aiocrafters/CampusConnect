@@ -26,7 +26,7 @@ interface ClassSection {
   id: string;
   className: string;
   sectionName: string;
-  classInchargeId?: string;
+  sectionInchargeId?: string;
 }
 
 
@@ -153,7 +153,7 @@ export default function Dashboard() {
                         <TableRow>
                             <TableHead>Class</TableHead>
                             <TableHead>Section</TableHead>
-                            <TableHead>Incharge Teacher</TableHead>
+                            <TableHead>Section Incharge</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -166,7 +166,7 @@ export default function Dashboard() {
                             <TableRow key={section.id}>
                                 <TableCell className="font-medium">{section.className}</TableCell>
                                 <TableCell>{section.sectionName}</TableCell>
-                                <TableCell>{getTeacherName(section.classInchargeId)}</TableCell>
+                                <TableCell>{getTeacherName(section.sectionInchargeId)}</TableCell>
                             </TableRow>
                         ))}
                          {allClassSections?.length === 0 && !classesLoading && (
@@ -182,3 +182,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    

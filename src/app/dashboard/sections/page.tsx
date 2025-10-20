@@ -41,13 +41,13 @@ interface ClassSection {
     schoolId: string;
     className: string;
     sectionName: string;
-    classInchargeId?: string;
+    sectionInchargeId?: string;
 }
 
 const sectionFormSchema = z.object({
   id: z.string().optional(),
   sectionName: z.string().min(1, "Section name is required."),
-  classInchargeId: z.string().optional(),
+  sectionInchargeId: z.string().optional(),
 });
 
 const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
@@ -87,7 +87,7 @@ export default function SectionsPage() {
     resolver: zodResolver(sectionFormSchema),
     defaultValues: {
       sectionName: "",
-      classInchargeId: "",
+      sectionInchargeId: "",
     },
   });
 
@@ -97,12 +97,12 @@ export default function SectionsPage() {
         form.reset({
           id: selectedSection.id,
           sectionName: selectedSection.sectionName,
-          classInchargeId: selectedSection.classInchargeId || "none",
+          sectionInchargeId: selectedSection.sectionInchargeId || "none",
         });
       } else {
         form.reset({
           sectionName: "",
-          classInchargeId: "none",
+          sectionInchargeId: "none",
         });
       }
     }
@@ -144,12 +144,12 @@ export default function SectionsPage() {
     const sectionId = isEditMode && selectedSection ? selectedSection.id : doc(collection(firestore, `schools/${schoolId}/classSections`)).id;
     const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, sectionId);
     
-    const dataToSave: ClassSection = {
+    const dataToSave: Omit<ClassSection, 'schoolId' | 'className'> & { schoolId: string, className: string } = {
         id: sectionId,
         schoolId,
         className: selectedClass,
         sectionName: values.sectionName,
-        classInchargeId: values.classInchargeId === 'none' ? '' : values.classInchargeId,
+        sectionInchargeId: values.sectionInchargeId === 'none' ? '' : values.sectionInchargeId,
     };
     
     if (isEditMode) {
@@ -215,7 +215,7 @@ export default function SectionsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Section Name</TableHead>
-                                    <TableHead>Class Incharge</TableHead>
+                                    <TableHead>Section Incharge</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -233,7 +233,7 @@ export default function SectionsPage() {
                                 {sectionsForSelectedClass.map(section => (
                                     <TableRow key={section.id}>
                                         <TableCell>{section.sectionName}</TableCell>
-                                        <TableCell>{getTeacherName(section.classInchargeId)}</TableCell>
+                                        <TableCell>{getTeacherName(section.sectionInchargeId)}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => handleEditSection(section)}>
                                                 <Edit className="h-4 w-4" />
@@ -278,10 +278,10 @@ export default function SectionsPage() {
                         />
                         <FormField
                             control={form.control}
-                            name="classInchargeId"
+                            name="sectionInchargeId"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Class Incharge</FormLabel>
+                                    <FormLabel>Section Incharge</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value || 'none'}>
                                         <FormControl>
                                             <SelectTrigger disabled={teachersLoading}>
@@ -332,3 +332,5 @@ export default function SectionsPage() {
     </main>
   )
 }
+
+    
