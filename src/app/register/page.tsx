@@ -1,15 +1,29 @@
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RegisterPage() {
     const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
+    const router = useRouter();
+    const { toast } = useToast();
+
+    const handleRegister = (e: React.FormEvent) => {
+        e.preventDefault();
+        toast({
+            title: "Registration Successful",
+            description: "Your school account has been created. Please log in.",
+        });
+        router.push('/login');
+    };
   
     return (
         <div className="w-full min-h-screen flex items-center justify-center p-4 bg-background">
@@ -37,7 +51,7 @@ export default function RegisterPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleRegister}>
                         <div className="grid gap-2">
                             <Label htmlFor="school-name">School Name</Label>
                             <Input id="school-name" placeholder="e.g., Prestige Elite Academy" required />

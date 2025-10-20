@@ -1,15 +1,29 @@
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast({
+      title: "Login Successful",
+      description: "Welcome back! Redirecting you to the dashboard.",
+    });
+    router.push('/dashboard');
+  };
   
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
@@ -33,32 +47,34 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email / Student ID</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">Password / DOB</Label>
-                    <Link
-                      href="#"
-                      className="ml-auto inline-block text-sm underline"
-                    >
-                      Forgot your password?
-                    </Link>
+              <form onSubmit={handleLogin}>
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email / Student ID</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="m@example.com"
+                      required
+                    />
                   </div>
-                  <Input id="password" type="password" placeholder="••••••••" required />
+                  <div className="grid gap-2">
+                    <div className="flex items-center">
+                      <Label htmlFor="password">Password / DOB</Label>
+                      <Link
+                        href="#"
+                        className="ml-auto inline-block text-sm underline"
+                      >
+                        Forgot your password?
+                      </Link>
+                    </div>
+                    <Input id="password" type="password" placeholder="••••••••" required />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    Login
+                  </Button>
                 </div>
-                <Button type="submit" className="w-full" asChild>
-                  <Link href="/dashboard">Login</Link>
-                </Button>
-              </div>
+              </form>
             </CardContent>
           </Card>
           <div className="relative z-20 mt-4 text-center text-sm">
