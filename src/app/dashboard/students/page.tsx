@@ -71,7 +71,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { Label } from "@/components/ui/label"
 
@@ -113,6 +113,14 @@ export default function StudentsPage() {
 
   const { data: students, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
 
+  const nextAdmissionNumber = useMemo(() => {
+    if (!students || students.length === 0) {
+      return null; // Indicates manual input is needed for the first student
+    }
+    const maxAdmissionNumber = Math.max(...students.map(s => parseInt(s.admissionNumber, 10)).filter(n => !isNaN(n)));
+    return isFinite(maxAdmissionNumber) ? (maxAdmissionNumber + 1).toString() : null;
+  }, [students]);
+
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
@@ -147,7 +155,7 @@ export default function StudentsPage() {
         const newStudentId = doc(collection(firestore!, `schools/${schoolId}/students`)).id;
         form.reset({
           id: newStudentId,
-          admissionNumber: "",
+          admissionNumber: nextAdmissionNumber || "",
           admissionDate: format(new Date(), 'yyyy-MM-dd'),
           fullName: "",
           pen: "",
@@ -163,7 +171,7 @@ export default function StudentsPage() {
         });
       }
     }
-  }, [isSheetOpen, isEditMode, selectedStudent, form, firestore, schoolId]);
+  }, [isSheetOpen, isEditMode, selectedStudent, form, firestore, schoolId, nextAdmissionNumber]);
 
   useEffect(() => {
     if (isStatusDialogOpen && selectedStudent) {
@@ -316,8 +324,17 @@ export default function StudentsPage() {
                             <FormItem>
                               <FormLabel>Admission Number</FormLabel>
                               <FormControl>
-                                <Input placeholder="e.g., ADM-12345" {...field} />
+                                <Input 
+                                  placeholder="e.g., 1001" 
+                                  {...field} 
+                                  disabled={isEditMode || !!nextAdmissionNumber} 
+                                />
                               </FormControl>
+                               { !isEditMode && !nextAdmissionNumber && (
+                                <FormDescription>
+                                  Set the starting admission number for your first student.
+                                </FormDescription>
+                               )}
                               <FormMessage />
                             </FormItem>
                           )}
