@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,10 +27,10 @@ export default function RegisterPage() {
             </div>
             <Card className="w-full max-w-2xl z-10">
                 <CardHeader className="text-center">
-                    <div className="flex justify-center items-center gap-2 mb-2">
+                    <Link href="/" className="flex justify-center items-center gap-2 mb-2">
                         <BookOpenCheck className="h-8 w-8 text-primary" />
                         <h1 className="text-3xl font-bold font-headline">CampusConnect</h1>
-                    </div>
+                    </Link>
                     <CardTitle className="text-2xl">Register Your School</CardTitle>
                     <CardDescription>
                         Join our platform by filling out the details below.
@@ -69,7 +70,7 @@ export default function RegisterPage() {
                             <Button type="submit" className="w-full">Create Account</Button>
                             <div className="text-center text-sm">
                                 Already have an account?{" "}
-                                <Link href="/" className="underline">
+                                <Link href="/login" className="underline">
                                     Login
                                 </Link>
                             </div>
