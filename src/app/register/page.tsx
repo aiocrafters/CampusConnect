@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -11,9 +12,11 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, setDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, setDoc, doc, writeBatch } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
+
+const basicClasses = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
 export default function RegisterPage() {
     const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
@@ -33,6 +36,16 @@ export default function RegisterPage() {
         const contactPhone = formData.get("contact-phone") as string;
         const adminName = formData.get("admin-name") as string;
         const password = formData.get("password") as string;
+
+        if (!firestore || !auth) {
+            toast({
+                variant: "destructive",
+                title: "Registration Failed",
+                description: "Firebase service is not available. Please try again later.",
+            });
+            setIsLoading(false);
+            return;
+        }
 
         try {
             // Check for existing school with the same UDISE code
@@ -54,9 +67,12 @@ export default function RegisterPage() {
             const userCredential = await createUserWithEmailAndPassword(auth, contactEmail, password);
             const user = userCredential.user;
 
-            // Create school document with user's UID as document ID
+            // --- Create school and master classes in a batch ---
+            const batch = writeBatch(firestore);
+
+            // Create school document
             const schoolDocRef = doc(firestore, "schools", user.uid);
-            await setDoc(schoolDocRef, {
+            batch.set(schoolDocRef, {
                 id: user.uid,
                 schoolName,
                 udiseCode,
@@ -65,6 +81,20 @@ export default function RegisterPage() {
                 contactPhoneNumber: contactPhone,
                 adminName,
             });
+
+            // Create master classes
+            basicClasses.forEach(className => {
+                const classId = doc(collection(firestore, `schools/${user.uid}/masterClasses`)).id;
+                const classRef = doc(firestore, `schools/${user.uid}/masterClasses`, classId);
+                batch.set(classRef, {
+                    id: classId,
+                    schoolId: user.uid,
+                    className: className
+                });
+            });
+
+            // Commit the batch
+            await batch.commit();
             
             toast({
                 title: "Registration Successful",
