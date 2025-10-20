@@ -45,6 +45,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 
 export default function StudentsPage() {
@@ -73,39 +74,57 @@ export default function StudentsPage() {
                   </span>
                 </Button>
               </SheetTrigger>
-              <SheetContent>
+              <SheetContent className="sm:max-w-[600px]">
                 <SheetHeader>
                   <SheetTitle>Add a New Student</SheetTitle>
                   <SheetDescription>
                     Fill in the details below to add a new student to the system.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" placeholder="Aarav Sharma" className="col-span-3" />
+                <ScrollArea className="h-[calc(100vh-8rem)]">
+                  <div className="grid gap-4 py-4 px-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="fullName" className="text-right">Full Name</Label>
+                      <Input id="fullName" placeholder="Aarav Sharma" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="udiseCode" className="text-right">UDISE Code</Label>
+                      <Input id="udiseCode" placeholder="School's UDISE Code" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="dob" className="text-right">DOB</Label>
+                      <Input id="dob" type="date" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="fatherName" className="text-right">Father's Full Name</Label>
+                      <Input id="fatherName" placeholder="Rakesh Sharma" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="motherName" className="text-right">Mother's Full Name</Label>
+                      <Input id="motherName" placeholder="Sunita Sharma" className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="address" className="text-right">Address</Label>
+                      <Input id="address" placeholder="123, Main Street" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="aadharNumber" className="text-right">Aadhar Number</Label>
+                      <Input id="aadharNumber" placeholder="xxxx-xxxx-xxxx" className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="bankAccountNumber" className="text-right">Bank Account No.</Label>
+                      <Input id="bankAccountNumber" placeholder="Bank Account Number" className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="bankName" className="text-right">Bank Name</Label>
+                      <Input id="bankName" placeholder="Name of the Bank" className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="ifscCode" className="text-right">Bank IFSC Code</Label>
+                      <Input id="ifscCode" placeholder="Bank's IFSC Code" className="col-span-3" />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="admissionNumber" className="text-right">Admission No.</Label>
-                    <Input id="admissionNumber" placeholder="2024001" className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="dob" className="text-right">Date of Birth</Label>
-                    <Input id="dob" type="date" className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="parentName" className="text-right">Parent Name</Label>
-                    <Input id="parentName" placeholder="Rakesh Sharma" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="class" className="text-right">Class</Label>
-                    <Input id="class" placeholder="Grade 5" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="section" className="text-right">Section</Label>
-                    <Input id="section" placeholder="A" className="col-span-3" />
-                  </div>
-                </div>
+                </ScrollArea>
                 <SheetFooter>
                   <SheetClose asChild>
                     <Button variant="outline">Cancel</Button>
