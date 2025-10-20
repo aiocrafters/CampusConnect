@@ -330,15 +330,15 @@ export default function ExamsPage() {
                 <Accordion type="single" collapsible className="w-full">
                   {exams.map(exam => (
                     <AccordionItem value={exam.id} key={exam.id}>
-                      <AccordionTrigger>
-                        <div className="flex justify-between items-center w-full pr-4">
-                            <span className="text-lg font-medium">{exam.examName}</span>
-                            <div>
+                        <div className="flex items-center w-full">
+                            <AccordionTrigger>
+                                <span className="text-lg font-medium">{exam.examName}</span>
+                            </AccordionTrigger>
+                            <div className="ml-auto pr-4 flex items-center gap-2">
                                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenExamSheet(exam); }}><Edit className="h-4 w-4 mr-2" /> Edit</Button>
                                 <Button variant="ghost" size="sm" className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteExam(exam); }}><Trash2 className="h-4 w-4 mr-2" /> Delete</Button>
                             </div>
                         </div>
-                      </AccordionTrigger>
                       <AccordionContent>
                         <div className="flex justify-between items-center mb-2 px-4">
                             <h4 className="font-semibold">Subjects</h4>
@@ -527,5 +527,3 @@ export default function ExamsPage() {
     </main>
   )
 }
-
-    
