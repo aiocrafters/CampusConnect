@@ -373,7 +373,7 @@ export default function StudentsPage() {
                             <FormItem>
                               <FormLabel>Admission Date</FormLabel>
                               <FormControl>
-                                <Input type="date" {...field} />
+                                <Input type="date" {...field} disabled={isEditMode} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -386,7 +386,7 @@ export default function StudentsPage() {
                             <FormItem>
                               <FormLabel>Full Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="Aarav Sharma" {...field} />
+                                <Input placeholder="Aarav Sharma" {...field} disabled={isEditMode} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -412,7 +412,7 @@ export default function StudentsPage() {
                             <FormItem>
                               <FormLabel>Date of Birth</FormLabel>
                               <FormControl>
-                                <Input type="date" {...field} />
+                                <Input type="date" {...field} disabled={isEditMode} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
