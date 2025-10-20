@@ -1,5 +1,6 @@
 
 
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -76,5 +77,15 @@ export interface StudentTimelineEvent {
         section?: string;
         academicYear?: string;
     };
+}
+
+export interface Promotion {
+    id: string;
+    schoolId: string;
+    academicYear: string;
+    fromClassSectionId: string;
+    toClassSectionId: string;
+    studentIds: string[];
+    promotionDate: string;
 }
     

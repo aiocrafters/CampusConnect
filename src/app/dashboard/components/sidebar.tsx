@@ -33,6 +33,7 @@ import { useUser } from "@/firebase";
 // This can be expanded later based on user roles from Firestore
 const adminNavItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/dashboard/admissions", icon: BookOpenCheck, label: "Class Admission" },
   { href: "/dashboard/students", icon: Users, label: "Students" },
   { href: "/dashboard/teachers", icon: BookUser, label: "Teachers" },
   { href: "/dashboard/classes", icon: SchoolIcon, label: "Classes" },
