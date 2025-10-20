@@ -91,9 +91,13 @@
           "type": "string",
           "description": "The Aadhaar number of the student (optional or masked for privacy)."
         },
+        "admissionClass": {
+            "type": "string",
+            "description": "The class the student was originally admitted to."
+        },
         "classSectionId": {
           "type": "string",
-          "description": "Reference to ClassSection. (Relationship: ClassSection 1:N Student)"
+          "description": "Reference to ClassSection, representing the student's CURRENT class and section. (Relationship: ClassSection 1:N Student)"
         },
         "pen": {
           "type": "string",
@@ -117,9 +121,24 @@
         "dateOfBirth",
         "parentGuardianName",
         "address",
-        "classSectionId",
+        "admissionClass",
         "admissionDate"
       ]
+    },
+    "StudentTimelineEvent": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "StudentTimelineEvent",
+        "type": "object",
+        "description": "Represents a single event in a student's timeline, like admission or promotion.",
+        "properties": {
+          "id": { "type": "string" },
+          "studentId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "type": { "type": "string", "enum": ["ADMISSION", "PROMOTION"] },
+          "description": { "type": "string" },
+          "details": { "type": "object" }
+        },
+        "required": ["id", "studentId", "timestamp", "type", "description"]
     },
     "ClassSection": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -445,6 +464,19 @@
               "name": "studentId",
               "description": "Unique identifier for the student."
             }
+          ]
+        }
+      },
+      {
+        "path": "/schools/{schoolId}/students/{studentId}/timeline/{eventId}",
+        "definition": {
+          "entityName": "StudentTimelineEvent",
+          "schema": { "$ref": "#/backend/entities/StudentTimelineEvent" },
+          "description": "Collection for timeline events for a student.",
+          "params": [
+            { "name": "schoolId", "description": "Unique identifier for the school." },
+            { "name": "studentId", "description": "Unique identifier for the student." },
+            { "name": "eventId", "description": "Unique identifier for the timeline event." }
           ]
         }
       },

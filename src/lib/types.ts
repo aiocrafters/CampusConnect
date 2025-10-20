@@ -65,4 +65,16 @@ export interface MasterSubject {
   subjectName: string;
 }
 
+export interface StudentTimelineEvent {
+    id: string;
+    studentId: string;
+    timestamp: string;
+    type: 'ADMISSION' | 'PROMOTION';
+    description: string;
+    details: {
+        class?: string;
+        section?: string;
+        academicYear?: string;
+    };
+}
     

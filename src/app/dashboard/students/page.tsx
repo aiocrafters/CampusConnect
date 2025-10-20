@@ -65,7 +65,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc } from "firebase/firestore"
+import { collection, query, doc, writeBatch } from "firebase/firestore"
 import type { Student } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -244,17 +244,17 @@ export default function StudentsPage() {
       return;
     }
     
+    const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
     
-    // We remove classSectionId from the data to save, as it's now managed on the classes page
-    const { classSectionId, ...dataToSave }: Omit<Student, 'status' | 'schoolId' | 'inactiveReason'> & { schoolId: string } = {
+    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason'> & { schoolId: string } = {
         ...values,
         schoolId,
     };
     
     if (isEditMode) {
       // Update existing document
-      updateDocumentNonBlocking(studentDocRef, dataToSave);
+      batch.update(studentDocRef, dataToSave);
       toast({
         title: "Student Updated",
         description: `${values.fullName}'s information has been updated.`,
@@ -266,13 +266,26 @@ export default function StudentsPage() {
         status: 'Active' as const,
         classSectionId: '', // Initially empty
       };
-      
-      setDocumentNonBlocking(studentDocRef, dataWithStatus, { merge: false });
+      batch.set(studentDocRef, dataWithStatus);
+
+      // Create initial timeline event for admission
+      const timelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+      batch.set(timelineEventRef, {
+          id: timelineEventRef.id,
+          studentId: values.id,
+          timestamp: new Date().toISOString(),
+          type: 'ADMISSION',
+          description: `Admitted to Class ${values.admissionClass}`,
+          details: { class: values.admissionClass }
+      });
+
       toast({
         title: "Student Added",
         description: `${values.fullName} has been added. Assign a section in the Classes page.`,
       });
     }
+
+    await batch.commit();
 
     form.reset();
     setIsSheetOpen(false);
@@ -809,5 +822,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-    
