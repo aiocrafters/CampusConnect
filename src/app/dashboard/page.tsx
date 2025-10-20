@@ -66,7 +66,7 @@ export default function Dashboard() {
   const stats = [
     { title: "Total Students", value: allStudents?.length ?? 0, icon: Users, isLoading: allStudentsLoading },
     { title: "Total Teachers", value: teachers?.length ?? 0, icon: BookUser, isLoading: teachersLoading },
-    { title: "Classes", value: allClassSections?.length ?? 0, icon: School, isLoading: classesLoading },
+    { title: "Class Rooms / Sections", value: allClassSections?.length ?? 0, icon: School, isLoading: classesLoading },
     { title: "Pending Queries", value: pendingQueries, icon: ClipboardCheck, isLoading: false },
   ]
   
