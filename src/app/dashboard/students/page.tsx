@@ -139,7 +139,7 @@ export default function StudentsPage() {
         });
       } else {
         // Reset form for adding a new student
-        const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
+        const newStudentId = doc(collection(firestore!, `schools/${schoolId}/students`)).id;
         form.reset({
           id: newStudentId,
           admissionNumber: "",
@@ -190,7 +190,7 @@ export default function StudentsPage() {
     
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
 
-    const dataToSave = {
+    const dataToSave: Omit<Student, 'status'> & { schoolId: string } = {
       ...values,
       schoolId: schoolId,
     };
@@ -206,7 +206,7 @@ export default function StudentsPage() {
       // Create new document
       const dataWithStatus = {
         ...dataToSave,
-        status: 'Active',
+        status: 'Active' as const,
       };
       
       setDocumentNonBlocking(studentDocRef, dataWithStatus, { merge: false });
@@ -253,7 +253,7 @@ export default function StudentsPage() {
                 <SheetHeader>
                   <SheetTitle>{isEditMode ? 'Edit Student Details' : 'Add a New Student'}</SheetTitle>
                   <SheetDescription>
-                   {isEditMode ? 'Update the student\'s information below.' : 'Fill in the details below to add a new student to the system.'}
+                   {isEditMode ? "Update the student's information below." : 'Fill in the details below to add a new student to the system.'}
                   </SheetDescription>
                 </SheetHeader>
                 <Form {...form}>
@@ -649,5 +649,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-
