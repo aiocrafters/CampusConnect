@@ -48,11 +48,16 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
 import type { Teacher } from "@/lib/types"
@@ -62,12 +67,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect } from "react"
-import { Label } from "@/components/ui/label"
 
 const teacherFormSchema = z.object({
   id: z.string().min(1, "Teacher ID is required."),
   name: z.string().min(2, "Teacher name is required."),
   contactDetails: z.string().min(10, "Contact details must be at least 10 characters."),
+  role: z.enum(['Primary', 'Middle School', 'High School']),
+  subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
 });
 
 export default function TeachersPage() {
@@ -141,7 +147,7 @@ export default function TeachersPage() {
     
     const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, values.id);
     
-    const dataToSave: Omit<Teacher, 'schoolId'> & { schoolId: string } = {
+    const dataToSave = {
         ...values,
         schoolId,
     };
@@ -171,6 +177,9 @@ export default function TeachersPage() {
     setIsDeleteDialogOpen(false);
     setSelectedTeacher(null);
   }
+
+  const roles = ['Primary', 'Middle School', 'High School'];
+  const subjects = ['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies'];
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -249,6 +258,46 @@ export default function TeachersPage() {
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="subject"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Subject</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a subject" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {subjects.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     <SheetFooter className="mt-auto">
                       <SheetClose asChild>
@@ -269,6 +318,8 @@ export default function TeachersPage() {
                 <TableHead>Teacher ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Contact Details</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Subject</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -277,14 +328,14 @@ export default function TeachersPage() {
             <TableBody>
               {teachersLoading && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     Loading teacher data...
                   </TableCell>
                 </TableRow>
               )}
               {!teachersLoading && teachers?.length === 0 && (
                  <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     No teachers found. Add one to get started.
                   </TableCell>
                 </TableRow>
@@ -294,6 +345,8 @@ export default function TeachersPage() {
                 <TableCell className="font-medium truncate max-w-[150px]">{teacher.id}</TableCell>
                 <TableCell>{teacher.name}</TableCell>
                 <TableCell>{teacher.contactDetails}</TableCell>
+                <TableCell>{teacher.role}</TableCell>
+                <TableCell>{teacher.subject}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -339,6 +392,14 @@ export default function TeachersPage() {
                 <span className="font-semibold text-muted-foreground">Contact Details</span>
                 <span>{selectedTeacher.contactDetails}</span>
               </div>
+              <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Role</span>
+                <span>{selectedTeacher.role}</span>
+              </div>
+              <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Subject</span>
+                <span>{selectedTeacher.subject}</span>
+              </div>
             </div>
           )}
           <DialogFooter>
@@ -369,5 +430,3 @@ export default function TeachersPage() {
     </main>
   )
 }
-
-    
