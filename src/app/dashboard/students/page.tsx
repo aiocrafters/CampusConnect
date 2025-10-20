@@ -61,8 +61,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
+import { format } from 'date-fns';
 
 const studentFormSchema = z.object({
+  admissionNumber: z.string().min(1, "Admission Number is required."),
+  admissionDate: z.string().min(1, "Admission Date is required."),
   fullName: z.string().min(2, "Full name is required."),
   pen: z.string().optional(),
   dateOfBirth: z.string().min(1, "Date of birth is required."),
@@ -93,6 +96,8 @@ export default function StudentsPage() {
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
+      admissionNumber: "",
+      admissionDate: format(new Date(), 'yyyy-MM-dd'),
       fullName: "",
       pen: "",
       dateOfBirth: "",
@@ -122,7 +127,6 @@ export default function StudentsPage() {
       ...values,
       schoolId: schoolId,
       status: 'Active', // Default status
-      admissionNumber: `ADM-${Date.now()}`
     };
 
     addDocumentNonBlocking(studentsRef, studentData);
@@ -173,6 +177,32 @@ export default function StudentsPage() {
                   <form onSubmit={form.handleSubmit(onSubmit)}>
                     <ScrollArea className="h-[calc(100vh-10rem)]">
                       <div className="grid gap-4 py-4 px-4">
+                        <FormField
+                          control={form.control}
+                          name="admissionNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Admission Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g., 2024001" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="admissionDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Admission Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         <FormField
                           control={form.control}
                           name="fullName"
@@ -360,7 +390,7 @@ export default function StudentsPage() {
                     <TableHead>Admission No.</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Admission Class</TableHead>
+                    <TableHead>Admission Date</TableHead>
                     <TableHead>Parent Name</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
@@ -391,7 +421,7 @@ export default function StudentsPage() {
                           {student.status}
                         </Badge>
                     </TableCell>
-                    <TableCell>{student.classSectionId}</TableCell>
+                    <TableCell>{student.admissionDate}</TableCell>
                     <TableCell>{student.parentGuardianName}</TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -419,3 +449,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+    

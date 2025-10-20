@@ -1,4 +1,5 @@
 
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -12,6 +13,7 @@ export interface User {
 export interface Student {
   id: string; 
   admissionNumber: string;
+  admissionDate: string;
   fullName: string;
   dateOfBirth: string; 
   parentGuardianName: string;
@@ -45,5 +47,7 @@ export interface Exam {
   date: string;
   class: string;
 }
+
+    
 
     
