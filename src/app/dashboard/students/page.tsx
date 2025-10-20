@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -32,7 +33,6 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { mockStudents } from "@/lib/mock-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Sheet,
@@ -44,11 +44,88 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet"
-import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase"
+import { collection, query } from "firebase/firestore"
+import type { Student } from "@/lib/types"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useToast } from "@/hooks/use-toast"
+import { useState } from "react"
+
+const studentFormSchema = z.object({
+  fullName: z.string().min(2, "Full name is required."),
+  // udiseCode: z.string().optional(), // This should come from the school
+  dateOfBirth: z.string().min(1, "Date of birth is required."),
+  parentGuardianName: z.string().min(2, "Father's name is required."),
+  motherName: z.string().optional(),
+  address: z.string().min(5, "Address is required."),
+  aadhaarNumber: z.string().optional(),
+  // Bank details are not in the Student schema yet, but we can add them later
+  // bankAccountNumber: z.string().optional(),
+  // bankName: z.string().optional(),
+  // ifscCode: z.string().optional(),
+  classSectionId: z.string().min(1, "Class/Section is required"),
+});
 
 
 export default function StudentsPage() {
+  const { user, firestore } = useFirebase();
+  const schoolId = user?.uid;
+  const { toast } = useToast();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const studentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/students`));
+  }, [firestore, schoolId]);
+
+  const { data: students, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+
+  const form = useForm<z.infer<typeof studentFormSchema>>({
+    resolver: zodResolver(studentFormSchema),
+    defaultValues: {
+      fullName: "",
+      dateOfBirth: "",
+      parentGuardianName: "",
+      motherName: "",
+      address: "",
+      aadhaarNumber: "",
+      classSectionId: "",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof studentFormSchema>) {
+    if (!firestore || !schoolId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not find school information.",
+      });
+      return;
+    }
+
+    const studentsRef = collection(firestore, `schools/${schoolId}/students`);
+    const studentData = {
+      ...values,
+      schoolId: schoolId,
+      status: 'Active', // Default status
+      // These are not in the form but are in the schema
+      admissionNumber: `ADM-${Date.now()}`
+    };
+
+    addDocumentNonBlocking(studentsRef, studentData);
+    
+    toast({
+      title: "Student Added",
+      description: `${values.fullName} has been added to the student list.`,
+    });
+    form.reset();
+    setIsSheetOpen(false);
+  }
+
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
       <Tabs defaultValue="all">
@@ -65,7 +142,7 @@ export default function StudentsPage() {
                 Export
               </span>
             </Button>
-            <Sheet>
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
                 <Button size="sm" className="h-8 gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
@@ -74,63 +151,118 @@ export default function StudentsPage() {
                   </span>
                 </Button>
               </SheetTrigger>
-              <SheetContent className="sm:max-w-[600px]">
+              <SheetContent className="sm:max-w-2xl">
                 <SheetHeader>
                   <SheetTitle>Add a New Student</SheetTitle>
                   <SheetDescription>
                     Fill in the details below to add a new student to the system.
                   </SheetDescription>
                 </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-8rem)]">
-                  <div className="grid gap-4 py-4 px-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="fullName" className="text-right">Full Name</Label>
-                      <Input id="fullName" placeholder="Aarav Sharma" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="udiseCode" className="text-right">UDISE Code</Label>
-                      <Input id="udiseCode" placeholder="School's UDISE Code" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="dob" className="text-right">DOB</Label>
-                      <Input id="dob" type="date" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="fatherName" className="text-right">Father's Full Name</Label>
-                      <Input id="fatherName" placeholder="Rakesh Sharma" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="motherName" className="text-right">Mother's Full Name</Label>
-                      <Input id="motherName" placeholder="Sunita Sharma" className="col-span-3" />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="address" className="text-right">Address</Label>
-                      <Input id="address" placeholder="123, Main Street" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="aadharNumber" className="text-right">Aadhar Number</Label>
-                      <Input id="aadharNumber" placeholder="xxxx-xxxx-xxxx" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="bankAccountNumber" className="text-right">Bank Account No.</Label>
-                      <Input id="bankAccountNumber" placeholder="Bank Account Number" className="col-span-3" />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="bankName" className="text-right">Bank Name</Label>
-                      <Input id="bankName" placeholder="Name of the Bank" className="col-span-3" />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="ifscCode" className="text-right">Bank IFSC Code</Label>
-                      <Input id="ifscCode" placeholder="Bank's IFSC Code" className="col-span-3" />
-                    </div>
-                  </div>
-                </ScrollArea>
-                <SheetFooter>
-                  <SheetClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </SheetClose>
-                  <Button type="submit">Save Student</Button>
-                </SheetFooter>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <ScrollArea className="h-[calc(100vh-10rem)]">
+                      <div className="grid gap-4 py-4 px-4">
+                        <FormField
+                          control={form.control}
+                          name="fullName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Aarav Sharma" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="dateOfBirth"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Date of Birth</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="parentGuardianName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Father's Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Rakesh Sharma" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="motherName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Mother's Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Sunita Sharma" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Address</FormLabel>
+                              <FormControl>
+                                <Input placeholder="123, Main Street" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="aadhaarNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Aadhar Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="xxxx-xxxx-xxxx" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="classSectionId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Class & Section</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g. Grade 5 - A" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </ScrollArea>
+                    <SheetFooter>
+                      <SheetClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </SheetClose>
+                      <Button type="submit">Save Student</Button>
+                    </SheetFooter>
+                  </form>
+                </Form>
               </SheetContent>
             </Sheet>
           </div>
@@ -151,7 +283,7 @@ export default function StudentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student ID</TableHead>
+                    <TableHead>Admission No.</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Class</TableHead>
@@ -162,17 +294,31 @@ export default function StudentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockStudents.map(student => (
+                  {studentsLoading && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        Loading student data...
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!studentsLoading && students?.length === 0 && (
+                     <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        No students found. Add one to get started.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {students && students.map(student => (
                   <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.id}</TableCell>
-                    <TableCell>{student.name}</TableCell>
+                    <TableCell className="font-medium">{student.admissionNumber}</TableCell>
+                    <TableCell>{student.fullName}</TableCell>
                     <TableCell>
-                       <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : ''}>
+                       <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
                           {student.status}
                         </Badge>
                     </TableCell>
-                    <TableCell>{student.class} - {student.section}</TableCell>
-                    <TableCell>{student.parentName}</TableCell>
+                    <TableCell>{student.classSectionId}</TableCell>
+                    <TableCell>{student.parentGuardianName}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -200,3 +346,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+  
