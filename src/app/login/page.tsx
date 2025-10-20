@@ -9,12 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { BookOpenCheck } from "lucide-react";
+import { BookOpenCheck, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase } from "@/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
@@ -24,6 +28,7 @@ export default function LoginPage() {
   const { auth, firestore } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("admin");
+  const [dob, setDob] = useState<Date>();
 
   useEffect(() => {
     const role = searchParams.get('role');
@@ -67,8 +72,9 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     const formData = new FormData(e.currentTarget);
+    const studentId = formData.get("studentId") as string;
     const admissionNumber = formData.get("admissionNumber") as string;
-    const dob = formData.get("dob") as string; // yyyy-mm-dd
+    const dateOfBirth = dob ? format(dob, 'yyyy-MM-dd') : '';
 
     toast({
         variant: "destructive",
@@ -78,8 +84,8 @@ export default function LoginPage() {
 
     setIsLoading(false);
     // TODO: Implement student login logic
-    // 1. Query 'students' collection group for matching admissionNumber.
-    // 2. If found, verify the dateOfBirth matches the provided 'dob'.
+    // 1. Query 'students' collection group for matching admissionNumber and studentId.
+    // 2. If found, verify the dateOfBirth matches the provided 'dateOfBirth'.
     // 3. If matches, you need a way to sign the user in. This usually requires a custom auth system
     //    or mapping student records to Firebase Auth users, which is complex.
     // 4. For now, we'll just show a "not implemented" message.
@@ -184,6 +190,17 @@ export default function LoginPage() {
                     <p className="text-sm text-muted-foreground text-center mb-4">For enrolled students.</p>
                     <div className="grid gap-4">
                       <div className="grid gap-2">
+                        <Label htmlFor="studentId">Student ID</Label>
+                        <Input
+                          id="studentId"
+                          name="studentId"
+                          type="text"
+                          placeholder="Your unique student ID"
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="grid gap-2">
                         <Label htmlFor="admissionNumber">Admission Number</Label>
                         <Input
                           id="admissionNumber"
@@ -196,7 +213,29 @@ export default function LoginPage() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="dob">Date of Birth</Label>
-                        <Input id="dob" name="dob" type="date" required disabled={isLoading} />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !dob && "text-muted-foreground"
+                              )}
+                              disabled={isLoading}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {dob ? format(dob, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={dob}
+                              onSelect={setDob}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? 'Logging in...' : 'Login as Student'}
