@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { PlusCircle, Edit, Trash2, Save, X, BookOpen, ChevronRight, NotebookText } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, where, writeBatch } from "firebase/firestore"
+import { collection, query, doc, where, writeBatch, collectionGroup } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -65,6 +65,7 @@ interface PerformanceRecord {
     studentId: string;
     subjectId: string;
     marks: number;
+    schoolId: string;
 }
 
 // Zod schemas
@@ -92,6 +93,10 @@ export default function ExamsPage() {
   const [isMarksSheetOpen, setIsMarksSheetOpen] = useState(false);
   const [selectedSubjectForMarks, setSelectedSubjectForMarks] = useState<Subject | null>(null);
   const [marks, setMarks] = useState<Record<string, number | string>>({});
+  const [isDeleteExamDialogOpen, setIsDeleteExamDialogOpen] = useState(false);
+  const [isDeleteSubjectDialogOpen, setIsDeleteSubjectDialogOpen] = useState(false);
+  const [examToDelete, setExamToDelete] = useState<Exam | null>(null);
+  const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
 
   // Form hooks
   const examForm = useForm<z.infer<typeof examFormSchema>>({
@@ -137,7 +142,12 @@ export default function ExamsPage() {
   
   const performanceRecordsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId || !selectedSubjectForMarks) return null;
-    return query(collection(firestore, `schools/${schoolId}/performanceRecords`), where("subjectId", "==", selectedSubjectForMarks.id));
+    // This is a collection group query to get all performance records for a subject across all students
+    return query(
+        collectionGroup(firestore, 'performanceRecords'),
+        where("schoolId", "==", schoolId),
+        where("subjectId", "==", selectedSubjectForMarks.id)
+    );
   }, [firestore, schoolId, selectedSubjectForMarks]);
   const { data: performanceRecords } = useCollection<PerformanceRecord>(performanceRecordsQuery);
 
@@ -146,12 +156,13 @@ export default function ExamsPage() {
   const classOptions = useMemo(() => {
     if (!allClassSections) return [];
     return [...new Set(allClassSections.map(s => s.className))].sort((a,b) => {
-        const aNum = parseInt(a);
-        const bNum = parseInt(b);
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        if (a < b) return -1;
-        if (a > b) return 1;
-        return 0;
+        const aIsNum = !isNaN(parseInt(a));
+        const bIsNum = !isNaN(parseInt(b));
+
+        if(aIsNum && bIsNum) return parseInt(a) - parseInt(b);
+        if(aIsNum) return -1;
+        if(bIsNum) return 1;
+        return a.localeCompare(b);
     });
   }, [allClassSections]);
 
@@ -161,13 +172,13 @@ export default function ExamsPage() {
   }, [allClassSections, selectedClass]);
   
   useEffect(() => {
-    if (selectedSubjectForMarks && performanceRecords) {
-      const initialMarks: Record<string, number | string> = {};
-      students?.forEach(student => {
-        const record = performanceRecords.find(pr => pr.studentId === student.id);
-        initialMarks[student.id] = record ? record.marks : '';
-      });
-      setMarks(initialMarks);
+    if (selectedSubjectForMarks && students) {
+        const initialMarks: Record<string, number | string> = {};
+        students.forEach(student => {
+            const record = performanceRecords?.find(pr => pr.studentId === student.id);
+            initialMarks[student.id] = record ? record.marks : '';
+        });
+        setMarks(initialMarks);
     }
   }, [selectedSubjectForMarks, performanceRecords, students]);
 
@@ -184,7 +195,8 @@ export default function ExamsPage() {
     setIsSubjectSheetOpen(true);
   };
   
-  const handleOpenMarksSheet = (subject: Subject) => {
+  const handleOpenMarksSheet = (subject: Subject, exam: Exam) => {
+    setSelectedExam(exam);
     setSelectedSubjectForMarks(subject);
     setIsMarksSheetOpen(true);
   };
@@ -221,6 +233,7 @@ export default function ExamsPage() {
     const data = {
         id: subjectId,
         examId: selectedExam.id,
+        schoolId: schoolId,
         ...values
     };
     
@@ -230,16 +243,30 @@ export default function ExamsPage() {
   };
 
   const handleDeleteExam = (exam: Exam) => {
-    if (!firestore || !schoolId) return;
-    deleteDocumentNonBlocking(doc(firestore, `schools/${schoolId}/exams`, exam.id));
-    toast({ variant: "destructive", title: "Exam Deleted", description: `${exam.examName} has been deleted.` });
+    setExamToDelete(exam);
+    setIsDeleteExamDialogOpen(true);
+  };
+
+  const confirmDeleteExam = () => {
+    if (!firestore || !schoolId || !examToDelete) return;
+    deleteDocumentNonBlocking(doc(firestore, `schools/${schoolId}/exams`, examToDelete.id));
+    toast({ variant: "destructive", title: "Exam Deleted", description: `${examToDelete.examName} has been deleted.` });
+    setIsDeleteExamDialogOpen(false);
+    setExamToDelete(null);
   };
   
   const handleDeleteSubject = (subject: Subject) => {
-    if (!firestore || !schoolId || !selectedExam) return;
-    deleteDocumentNonBlocking(doc(firestore, `schools/${schoolId}/exams/${selectedExam.id}/subjects`, subject.id));
-    toast({ variant: "destructive", title: "Subject Deleted" });
+     setSubjectToDelete(subject);
+     setIsDeleteSubjectDialogOpen(true);
   };
+
+  const confirmDeleteSubject = () => {
+    if (!firestore || !schoolId || !selectedExam || !subjectToDelete) return;
+    deleteDocumentNonBlocking(doc(firestore, `schools/${schoolId}/exams/${selectedExam.id}/subjects`, subjectToDelete.id));
+    toast({ variant: "destructive", title: "Subject Deleted" });
+    setIsDeleteSubjectDialogOpen(false);
+    setSubjectToDelete(null);
+  }
 
   const onMarksSubmit = async () => {
     if (!firestore || !schoolId || !selectedSubjectForMarks || !students) return;
@@ -248,21 +275,26 @@ export default function ExamsPage() {
     
     students.forEach(student => {
         const studentMark = marks[student.id];
-        if (studentMark !== '' && studentMark !== undefined) {
+        if (studentMark !== '' && studentMark !== undefined && studentMark !== null) {
              const record = performanceRecords?.find(pr => pr.studentId === student.id);
              const marksAsNumber = Number(studentMark);
+             const recordPath = `schools/${schoolId}/students/${student.id}/performanceRecords`;
+
+             if (isNaN(marksAsNumber)) return;
 
              if (record) { // Update existing record
-                const recordRef = doc(firestore, `schools/${schoolId}/performanceRecords`, record.id);
+                const recordRef = doc(firestore, recordPath, record.id);
                 batch.update(recordRef, { marks: marksAsNumber });
              } else { // Create new record
-                const newRecordRef = doc(collection(firestore, `schools/${schoolId}/performanceRecords`));
+                const newRecordRef = doc(collection(firestore, recordPath));
                 batch.set(newRecordRef, {
                     id: newRecordRef.id,
                     studentId: student.id,
                     subjectId: selectedSubjectForMarks.id,
                     marks: marksAsNumber,
                     schoolId: schoolId,
+                    examId: selectedExam?.id,
+                    classSectionId: selectedSectionId,
                 });
              }
         }
@@ -281,6 +313,10 @@ export default function ExamsPage() {
   const getTeacherName = (teacherId: string) => {
     return teachers?.find(t => t.id === teacherId)?.name || "Unknown Teacher";
   };
+  
+  const getSubjectsForExam = (examId: string) => {
+    return subjects?.filter(s => s.examId === examId) || [];
+  }
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -327,7 +363,10 @@ export default function ExamsPage() {
 
               {examsLoading ? <p>Loading exams...</p> : 
                exams && exams.length > 0 ? (
-                <Accordion type="single" collapsible className="w-full">
+                <Accordion type="single" collapsible className="w-full" onValueChange={(value) => {
+                    const exam = exams.find(e => e.id === value);
+                    setSelectedExam(exam || null);
+                }}>
                   {exams.map(exam => (
                     <AccordionItem value={exam.id} key={exam.id}>
                         <div className="flex items-center w-full">
@@ -357,13 +396,13 @@ export default function ExamsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {subjects?.filter(s => s.examId === exam.id).map(subject => (
+                                    {getSubjectsForExam(exam.id).map(subject => (
                                         <TableRow key={subject.id}>
                                             <TableCell>{subject.subjectName}</TableCell>
                                             <TableCell>{getTeacherName(subject.teacherId)}</TableCell>
                                             <TableCell>{subject.maxMarks}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="secondary" size="sm" onClick={() => handleOpenMarksSheet(subject)}>
+                                                <Button variant="secondary" size="sm" onClick={() => handleOpenMarksSheet(subject, exam)}>
                                                     <NotebookText className="h-4 w-4 mr-2" /> Enter Marks
                                                 </Button>
                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteSubject(subject)}>
@@ -372,7 +411,7 @@ export default function ExamsPage() {
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                     {subjects?.filter(s => s.examId === exam.id).length === 0 && (
+                                     {getSubjectsForExam(exam.id).length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={4} className="text-center">No subjects added yet.</TableCell>
                                         </TableRow>
@@ -507,7 +546,15 @@ export default function ExamsPage() {
                                     <Input 
                                         type="number" 
                                         value={marks[student.id] || ''}
-                                        onChange={(e) => setMarks(prev => ({ ...prev, [student.id]: e.target.value }))}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            const max = selectedSubjectForMarks?.maxMarks || 100;
+                                            if (Number(value) > max) {
+                                                setMarks(prev => ({ ...prev, [student.id]: max }))
+                                            } else {
+                                                setMarks(prev => ({ ...prev, [student.id]: value }))
+                                            }
+                                        }}
                                         max={selectedSubjectForMarks?.maxMarks}
                                         min={0}
                                     />
@@ -524,6 +571,36 @@ export default function ExamsPage() {
             </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Delete Exam Dialog */}
+      <Dialog open={isDeleteExamDialogOpen} onOpenChange={setIsDeleteExamDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Are you sure?</DialogTitle>
+                <DialogDescription>This will permanently delete the exam "{examToDelete?.examName}" and all associated subjects and marks. This action cannot be undone.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button variant="destructive" onClick={confirmDeleteExam}>Yes, delete exam</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Subject Dialog */}
+      <Dialog open={isDeleteSubjectDialogOpen} onOpenChange={setIsDeleteSubjectDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Are you sure?</DialogTitle>
+                <DialogDescription>This will permanently delete the subject "{subjectToDelete?.subjectName}" and all associated marks. This action cannot be undone.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button variant="destructive" onClick={confirmDeleteSubject}>Yes, delete subject</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
+
+    
