@@ -98,7 +98,7 @@ export default function ClassesPage() {
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
       <Card>
         <CardHeader>
-          <CardTitle>Assign Students to Sections</CardTitle>
+          <CardTitle>Class & Section Assignments</CardTitle>
           <CardDescription>
             Choose a class to view its students and assign them to their respective sections.
           </CardDescription>
@@ -123,7 +123,7 @@ export default function ClassesPage() {
 
             {selectedClass && (
                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Students in Class {selectedClass}</h3>
+                    <h3 className="text-lg font-semibold mb-2">Students Admitted to Class {selectedClass}</h3>
                     <div className="rounded-md border">
                         <Table>
                             <TableHeader>
