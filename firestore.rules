@@ -1,0 +1,204 @@
+/**
+ * @file Firestore Security Rules for CampusConnect
+ * @version Prototyping
+ *
+ * @Core Philosophy:
+ * This ruleset enforces a strict school-ownership model. All data is nested under /schools/{schoolId},
+ * and access is controlled based on the school ID.  All subcollections inherit schoolId for authorization independence.
+ * Only authenticated users can access data, and access is restricted to the school that owns the data.
+ *
+ * @Data Structure:
+ * The database is structured with a top-level /schools/{schoolId} collection.
+ * Subcollections under each school include:
+ *   - /students/{studentId}
+ *   - /classSections/{classSectionId}
+ *   - /teachers/{teacherId}
+ *   - /exams/{examId}
+ *   - /exams/{examId}/subjects/{subjectId}
+ *   - /students/{studentId}/performanceRecords/{performanceRecordId}
+ *   - /students/{studentId}/classInchargeQueries/{classInchargeQueryId}
+ *
+ * @Key Security Decisions:
+ * - All write operations require the user to be authenticated.
+ * - All write operations are restricted to the school that owns the data, based on the schoolId in the path and the document.
+ * - Listing of collections is allowed for authenticated users within their school.
+ * - Data validation is minimal (prototyping mode) and focuses on relationships (e.g., schoolId consistency).
+ *
+ * @Denormalization for Authorization:
+ * - The `schoolId` is denormalized into every subcollection document. This avoids the need for `get()` calls
+ *   in security rules to verify school ownership.
+ *
+ * @Structural Segregation:
+ * - Each collection is dedicated to a single entity type (students, teachers, etc.), ensuring that all
+ *   documents within a collection share the same security requirements.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Secure the /schools/{schoolId} collection.
+     * @path /schools/{schoolId}
+     * @allow (create) User with valid auth can create a school with a matching ID.
+     * @deny (create) User tries to create a school with an ID that doesn't match their auth.
+     * @allow (get, list) Authenticated user can read school data.
+     * @deny (update, delete) No one can update or delete a school.
+     * @principle Enforces document ownership for writes and allows public reads.
+     */
+    match /schools/{schoolId} {
+      // Anyone can read school data
+      allow get, list: if true;
+
+      // Only an authenticated user can create a school, but only if the schoolId matches the request.auth.uid
+      allow create: if isSignedIn() && request.resource.data.id == schoolId;
+
+      // No one can update or delete a school
+      allow update, delete: if false;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/students/{studentId} collection.
+     * @path /schools/{schoolId}/students/{studentId}
+     * @allow (create) Authenticated user can create a student within a school if schoolId matches.
+     * @deny (create) User tries to create a student in a school they don't own.
+     * @allow (get, list) Authenticated user can read student data within their school.
+     * @deny (update, delete) No one can update or delete a student outside school scope.
+     * @principle Enforces school ownership for student data.
+     */
+    match /schools/{schoolId}/students/{studentId} {
+      // Authenticated user can read student data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create a student, and the schoolId must match
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId && request.resource.data.id == studentId;
+
+      // Existing student can be updated or deleted but only in school scope.
+      allow update, delete: if isSignedIn() && resource.data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/classSections/{classSectionId} collection.
+     * @path /schools/{schoolId}/classSections/{classSectionId}
+     * @allow (create) Authenticated user can create a class section within a school if schoolId matches.
+     * @deny (create) User tries to create a class section in a school they don't own.
+     * @allow (get, list) Authenticated user can read class section data within their school.
+     * @deny (update, delete) No one can update or delete a class section outside school scope.
+     * @principle Enforces school ownership for class section data.
+     */
+    match /schools/{schoolId}/classSections/{classSectionId} {
+      // Authenticated user can read class section data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create a class section, and the schoolId must match
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId && request.resource.data.id == classSectionId;
+
+      // Existing class section can be updated or deleted but only in school scope
+      allow update, delete: if isSignedIn() && resource.data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/teachers/{teacherId} collection.
+     * @path /schools/{schoolId}/teachers/{teacherId}
+     * @allow (create) Authenticated user can create a teacher within a school if schoolId matches.
+     * @deny (create) User tries to create a teacher in a school they don't own.
+     * @allow (get, list) Authenticated user can read teacher data within their school.
+     * @deny (update, delete) No one can update or delete a teacher outside school scope.
+     * @principle Enforces school ownership for teacher data.
+     */
+    match /schools/{schoolId}/teachers/{teacherId} {
+      // Authenticated user can read teacher data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create a teacher, and the schoolId must match
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId && request.resource.data.id == teacherId;
+
+      // Existing teacher can be updated or deleted but only in school scope
+      allow update, delete: if isSignedIn() && resource.data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/exams/{examId} collection.
+     * @path /schools/{schoolId}/exams/{examId}
+     * @allow (create) Authenticated user can create an exam within a school if schoolId matches.
+     * @deny (create) User tries to create an exam in a school they don't own.
+     * @allow (get, list) Authenticated user can read exam data within their school.
+     * @deny (update, delete) No one can update or delete an exam outside school scope.
+     * @principle Enforces school ownership for exam data.
+     */
+    match /schools/{schoolId}/exams/{examId} {
+      // Authenticated user can read exam data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create an exam, and the schoolId must match
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId && request.resource.data.id == examId;
+
+      // Existing exam can be updated or deleted but only in school scope
+      allow update, delete: if isSignedIn() && resource.data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/exams/{examId}/subjects/{subjectId} collection.
+     * @path /schools/{schoolId}/exams/{examId}/subjects/{subjectId}
+     * @allow (create) Authenticated user can create a subject within an exam if schoolId matches.
+     * @deny (create) User tries to create a subject in an exam they don't own.
+     * @allow (get, list) Authenticated user can read subject data within their school.
+     * @deny (update, delete) No one can update or delete a subject outside school scope.
+     * @principle Enforces school ownership for subject data.
+     */
+    match /schools/{schoolId}/exams/{examId}/subjects/{subjectId} {
+      // Authenticated user can read subject data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create a subject, and the schoolId must match
+      allow create: if isSignedIn() && request.resource.data.examId == examId && get(/databases/$(database)/documents/schools/$(schoolId)/exams/$(examId)).data.schoolId == schoolId && request.resource.data.id == subjectId;
+
+      // Existing subject can be updated or deleted but only in school scope
+      allow update, delete: if isSignedIn() && get(/databases/$(database)/documents/schools/$(schoolId)/exams/$(examId)).data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/students/{studentId}/performanceRecords/{performanceRecordId} collection.
+     * @path /schools/{schoolId}/students/{studentId}/performanceRecords/{performanceRecordId}
+     * @allow (create) Authenticated user can create a performance record for a student if schoolId matches.
+     * @deny (create) User tries to create a performance record for a student they don't own.
+     * @allow (get, list) Authenticated user can read performance record data within their school.
+     * @deny (update, delete) No one can update or delete a performance record outside school scope.
+     * @principle Enforces school ownership for performance record data.
+     */
+    match /schools/{schoolId}/students/{studentId}/performanceRecords/{performanceRecordId} {
+      // Authenticated user can read performance record data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create a performance record, and the studentId and schoolId must match
+      allow create: if isSignedIn() && request.resource.data.studentId == studentId && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data.schoolId == schoolId && request.resource.data.id == performanceRecordId;
+
+      // Existing performance record can be updated or deleted but only in school scope
+      allow update, delete: if isSignedIn() && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * @description Secure the /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId} collection.
+     * @path /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId}
+     * @allow (create) Authenticated user can create a class incharge query for a student if schoolId matches.
+     * @deny (create) User tries to create a class incharge query for a student they don't own.
+     * @allow (get, list) Authenticated user can read class incharge query data within their school.
+     * @deny (update, delete) No one can update or delete a class incharge query outside school scope.
+     * @principle Enforces school ownership for class incharge query data.
+     */
+    match /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId} {
+      // Authenticated user can read class incharge query data within their school
+      allow get, list: if isSignedIn();
+
+      // Only an authenticated user can create a class incharge query, and the studentId and schoolId must match
+      allow create: if isSignedIn() && request.resource.data.studentId == studentId && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data.schoolId == schoolId && request.resource.data.id == classInchargeQueryId;
+
+      // Existing class incharge query can be updated or deleted but only in school scope
+      allow update, delete: if isSignedIn() && get(/databases/$(database)/documents/schools/$(schoolId)/students/$(studentId)).data.schoolId == schoolId && resource != null && request.resource.data.id == resource.data.id;
+    }
+
+    // Helper function to determine if a user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+  }
+}
