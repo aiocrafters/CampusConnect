@@ -173,9 +173,27 @@
           "type": "string",
           "description": "The name of the teacher."
         },
-        "contactDetails": {
+        "email": {
           "type": "string",
-          "description": "The contact details of the teacher."
+          "description": "The email address of the teacher.",
+          "format": "email"
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "The contact phone number of the teacher."
+        },
+        "qualification": {
+          "type": "string",
+          "description": "The academic qualification of the teacher."
+        },
+        "address": {
+          "type": "string",
+          "description": "The address of the teacher."
+        },
+        "dateOfJoining": {
+          "type": "string",
+          "description": "The date the teacher joined the school.",
+          "format": "date-time"
         },
         "role": {
             "type": "string",
@@ -192,7 +210,11 @@
         "id",
         "schoolId",
         "name",
-        "contactDetails",
+        "email",
+        "contactNumber",
+        "qualification",
+        "address",
+        "dateOfJoining",
         "role",
         "subject"
       ]

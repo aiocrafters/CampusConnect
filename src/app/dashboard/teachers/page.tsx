@@ -7,7 +7,6 @@ import {
   Search,
   MoreHorizontal
 } from "lucide-react"
-
 import {
   Card,
   CardContent,
@@ -60,6 +59,7 @@ import {
 } from "@/components/ui/select"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
+import { createUserWithEmailAndPassword } from "firebase/auth"
 import type { Teacher } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -67,17 +67,24 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect } from "react"
+import { format, parseISO } from "date-fns"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const teacherFormSchema = z.object({
   id: z.string().min(1, "Teacher ID is required."),
   name: z.string().min(2, "Teacher name is required."),
-  contactDetails: z.string().min(10, "Contact details must be at least 10 characters."),
+  email: z.string().email("Invalid email address."),
+  password: z.string().optional(),
+  contactNumber: z.string().min(10, "Contact number must be at least 10 digits."),
+  qualification: z.string().min(2, "Qualification is required."),
+  address: z.string().min(5, "Address is required."),
+  dateOfJoining: z.string().min(1, "Date of joining is required."),
   role: z.enum(['Primary', 'Middle School', 'High School']),
   subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
 });
 
 export default function TeachersPage() {
-  const { user, firestore } = useFirebase();
+  const { user, firestore, auth } = useFirebase();
   const schoolId = user?.uid;
   const { toast } = useToast();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -98,20 +105,34 @@ export default function TeachersPage() {
     defaultValues: {
       id: "",
       name: "",
-      contactDetails: "",
+      email: "",
+      password: "",
+      contactNumber: "",
+      qualification: "",
+      address: "",
+      dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
     },
   });
 
   useEffect(() => {
     if (isSheetOpen) {
       if (isEditMode && selectedTeacher) {
-        form.reset(selectedTeacher);
+        form.reset({
+          ...selectedTeacher,
+          dateOfJoining: selectedTeacher.dateOfJoining ? format(parseISO(selectedTeacher.dateOfJoining), 'yyyy-MM-dd') : '',
+          password: ""
+        });
       } else {
         const newTeacherId = doc(collection(firestore!, `schools/${schoolId}/teachers`)).id;
         form.reset({
           id: newTeacherId,
           name: "",
-          contactDetails: "",
+          email: "",
+          password: "",
+          contactNumber: "",
+          qualification: "",
+          address: "",
+          dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
         });
       }
     }
@@ -140,15 +161,16 @@ export default function TeachersPage() {
   };
 
   async function onSubmit(values: z.infer<typeof teacherFormSchema>) {
-    if (!firestore || !schoolId) {
-      toast({ variant: "destructive", title: "Error", description: "Could not find school information." });
+    if (!firestore || !schoolId || !auth) {
+      toast({ variant: "destructive", title: "Error", description: "Could not find school information or auth service." });
       return;
     }
     
+    const { password, ...teacherData } = values;
     const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, values.id);
     
     const dataToSave = {
-        ...values,
+        ...teacherData,
         schoolId,
     };
     
@@ -156,8 +178,29 @@ export default function TeachersPage() {
       updateDocumentNonBlocking(teacherDocRef, dataToSave);
       toast({ title: "Teacher Updated", description: `${values.name}'s information has been updated.` });
     } else {
-      setDocumentNonBlocking(teacherDocRef, dataToSave, { merge: false });
-      toast({ title: "Teacher Added", description: `${values.name} has been added to the teacher list.` });
+      // Create new teacher and auth user
+      if (!password || password.length < 6) {
+        toast({ variant: "destructive", title: "Password Required", description: "A password of at least 6 characters is required for new teachers." });
+        return;
+      }
+      try {
+        // NOTE: This creates a user in the project's main Firebase Auth.
+        // For a true multi-tenant app, you'd use a separate auth instance or custom tokens.
+        await createUserWithEmailAndPassword(auth, values.email, password);
+        
+        setDocumentNonBlocking(teacherDocRef, dataToSave, { merge: false });
+        toast({ title: "Teacher Added", description: `${values.name} has been added and a login account has been created.` });
+
+      } catch (error: any) {
+         let description = "An error occurred while creating the teacher's login account.";
+         if (error.code === 'auth/email-already-in-use') {
+           description = "This email is already in use. Please use a different email.";
+         } else if (error.code === 'auth/weak-password') {
+            description = "The password is too weak. Please use a stronger password.";
+         }
+         toast({ variant: "destructive", title: "Account Creation Failed", description });
+         return; // Stop execution if auth creation fails
+      }
     }
 
     form.reset();
@@ -171,6 +214,7 @@ export default function TeachersPage() {
       toast({ variant: "destructive", title: "Error", description: "Could not delete teacher." });
       return;
     }
+    // Note: This does not delete the Firebase Auth user. That would require a backend function.
     const teacherDocRef = doc(firestore, `schools/${schoolId}/teachers`, selectedTeacher.id);
     deleteDocumentNonBlocking(teacherDocRef);
     toast({ title: "Teacher Deleted", description: `${selectedTeacher.name} has been removed.` });
@@ -209,7 +253,7 @@ export default function TeachersPage() {
                   </span>
                 </Button>
               </SheetTrigger>
-              <SheetContent className="sm:max-w-lg">
+              <SheetContent className="sm:max-w-2xl">
                 <SheetHeader>
                   <SheetTitle>{isEditMode ? 'Edit Teacher Details' : 'Add a New Teacher'}</SheetTitle>
                   <SheetDescription>
@@ -217,13 +261,14 @@ export default function TeachersPage() {
                   </SheetDescription>
                 </SheetHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
-                    <div className="grid gap-4 py-4">
+                  <form onSubmit={form.handleSubmit(onSubmit)}>
+                   <ScrollArea className="h-[calc(100vh-10rem)]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 px-4">
                       <FormField
                         control={form.control}
                         name="id"
                         render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="md:col-span-2">
                             <FormLabel>Teacher ID</FormLabel>
                             <FormControl>
                               <Input placeholder="Auto-generated ID" {...field} disabled />
@@ -245,14 +290,79 @@ export default function TeachersPage() {
                           </FormItem>
                         )}
                       />
-                      <FormField
+                       <FormField
                         control={form.control}
-                        name="contactDetails"
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Contact Details</FormLabel>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., 9876543210 or email@example.com" {...field} />
+                              <Input type="email" placeholder="teacher@example.com" {...field} disabled={isEditMode} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                       {!isEditMode && <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Set Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Min. 6 characters" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />}
+                       <FormField
+                        control={form.control}
+                        name="contactNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., 9876543210" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="dateOfJoining"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date of Joining</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="qualification"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Qualification</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., M.Sc, B.Ed" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Residential Address" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -283,7 +393,7 @@ export default function TeachersPage() {
                         name="subject"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Subject</FormLabel>
+                            <FormLabel>Primary Subject</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
@@ -299,7 +409,8 @@ export default function TeachersPage() {
                         )}
                       />
                     </div>
-                    <SheetFooter className="mt-auto">
+                    </ScrollArea>
+                    <SheetFooter>
                       <SheetClose asChild>
                         <Button variant="outline">Cancel</Button>
                       </SheetClose>
@@ -315,11 +426,12 @@ export default function TeachersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Teacher ID</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Contact Details</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Contact</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Subject</TableHead>
+                <TableHead>Date of Joining</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -328,25 +440,26 @@ export default function TeachersPage() {
             <TableBody>
               {teachersLoading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     Loading teacher data...
                   </TableCell>
                 </TableRow>
               )}
               {!teachersLoading && teachers?.length === 0 && (
                  <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     No teachers found. Add one to get started.
                   </TableCell>
                 </TableRow>
               )}
               {teachers && teachers.map(teacher => (
               <TableRow key={teacher.id}>
-                <TableCell className="font-medium truncate max-w-[150px]">{teacher.id}</TableCell>
-                <TableCell>{teacher.name}</TableCell>
-                <TableCell>{teacher.contactDetails}</TableCell>
+                <TableCell className="font-medium">{teacher.name}</TableCell>
+                <TableCell>{teacher.email}</TableCell>
+                <TableCell>{teacher.contactNumber}</TableCell>
                 <TableCell>{teacher.role}</TableCell>
                 <TableCell>{teacher.subject}</TableCell>
+                <TableCell>{teacher.dateOfJoining}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -379,6 +492,7 @@ export default function TeachersPage() {
             </DialogDescription>
           </DialogHeader>
           {selectedTeacher && (
+             <ScrollArea className="max-h-[60vh] pr-6">
             <div className="grid gap-4 py-4 text-sm">
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Teacher ID</span>
@@ -389,8 +503,24 @@ export default function TeachersPage() {
                 <span>{selectedTeacher.name}</span>
               </div>
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                <span className="font-semibold text-muted-foreground">Contact Details</span>
-                <span>{selectedTeacher.contactDetails}</span>
+                <span className="font-semibold text-muted-foreground">Email</span>
+                <span>{selectedTeacher.email}</span>
+              </div>
+              <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Contact Number</span>
+                <span>{selectedTeacher.contactNumber}</span>
+              </div>
+               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Date of Joining</span>
+                <span>{selectedTeacher.dateOfJoining}</span>
+              </div>
+               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Address</span>
+                <span>{selectedTeacher.address}</span>
+              </div>
+               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Qualification</span>
+                <span>{selectedTeacher.qualification}</span>
               </div>
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Role</span>
@@ -401,6 +531,7 @@ export default function TeachersPage() {
                 <span>{selectedTeacher.subject}</span>
               </div>
             </div>
+            </ScrollArea>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
@@ -413,7 +544,7 @@ export default function TeachersPage() {
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete the teacher record for <span className="font-semibold">{selectedTeacher?.name}</span>.
+              This action cannot be undone. This will permanently delete the teacher record for <span className="font-semibold">{selectedTeacher?.name}</span>. The associated login account will NOT be deleted.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

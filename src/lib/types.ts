@@ -1,4 +1,5 @@
 
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -32,7 +33,11 @@ export interface Student {
 export interface Teacher {
   id: string;
   name: string;
-  contactDetails: string;
+  email: string;
+  contactNumber: string;
+  qualification: string;
+  address: string;
+  dateOfJoining: string;
   role: 'Primary' | 'Middle School' | 'High School';
   subject: 'General' | 'English' | 'Urdu' | 'Math' | 'Science' | 'Social Studies';
   schoolId: string;
