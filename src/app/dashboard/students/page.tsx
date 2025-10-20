@@ -44,6 +44,13 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase"
 import { collection, query } from "firebase/firestore"
@@ -51,7 +58,7 @@ import type { Student } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
 
@@ -66,7 +73,7 @@ const studentFormSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
-  classSectionId: z.string().min(1, "Class/Section is required"),
+  classSectionId: z.string().min(1, "Admission Class is required"),
 });
 
 
@@ -127,6 +134,8 @@ export default function StudentsPage() {
     form.reset();
     setIsSheetOpen(false);
   }
+  
+  const classOptions = ["LKG", "UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -299,10 +308,21 @@ export default function StudentsPage() {
                           name="classSectionId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Class & Section</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g. Grade 5 - A" {...field} />
-                              </FormControl>
+                              <FormLabel>Admission Class</FormLabel>
+                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a class" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {classOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -340,7 +360,7 @@ export default function StudentsPage() {
                     <TableHead>Admission No.</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Class</TableHead>
+                    <TableHead>Admission Class</TableHead>
                     <TableHead>Parent Name</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
@@ -385,7 +405,6 @@ export default function StudentsPage() {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem>Edit</DropdownMenuItem>
                           <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -400,5 +419,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-    
