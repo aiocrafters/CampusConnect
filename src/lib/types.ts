@@ -12,19 +12,20 @@ export interface Student {
   id: string; 
   admissionNumber: string;
   udiseCode: string;
-  name: string;
-  dob: string; 
-  parentName: string;
-  class: string;
-  section: string;
+  fullName: string;
+  dateOfBirth: string; 
+  parentGuardianName: string;
+  classSectionId: string;
+  address: string;
+  aadhaarNumber?: string;
   status: 'Active' | 'Inactive';
 }
 
 export interface Teacher {
   id: string;
   name: string;
-  contact: string;
-  assignedClasses: { class: string; section: string; subject: string }[];
+  contactDetails: string;
+  schoolId: string;
 }
 
 export interface SchoolClass {

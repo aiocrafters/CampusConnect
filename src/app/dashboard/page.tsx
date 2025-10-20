@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Card,
   CardContent,
@@ -13,24 +15,60 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { mockStudents, mockTeachers } from "@/lib/mock-data"
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query, limit, orderBy } from "firebase/firestore"
 import { Users, BookUser, School, ClipboardCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-
-const stats = [
-    { title: "Total Students", value: "1,250", icon: Users, change: "+12 since last month" },
-    { title: "Total Teachers", value: "85", icon: BookUser, change: "+3 since last month" },
-    { title: "Classes", value: "45", icon: School, change: "2 new sections added" },
-    { title: "Pending Queries", value: "8", icon: ClipboardCheck, change: "3 new queries" },
-]
+import type { Student, Teacher } from "@/lib/types";
 
 export default function Dashboard() {
-  const recentStudents = mockStudents.slice(0, 5);
+  const { user, isUserLoading, firestore } = useFirebase();
+
+  const schoolId = user?.uid;
+
+  const studentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(5));
+  }, [firestore, schoolId]);
+
+  const allStudentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return collection(firestore, `schools/${schoolId}/students`);
+  }, [firestore, schoolId]);
+
+  const teachersQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return collection(firestore, `schools/${schoolId}/teachers`);
+  }, [firestore, schoolId]);
+
+  const classesQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return collection(firestore, `schools/${schoolId}/classSections`);
+  }, [firestore, schoolId]);
+
+  const { data: recentStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+  const { data: allStudents, isLoading: allStudentsLoading } = useCollection<Student>(allStudentsQuery);
+  const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
+  const { data: classes, isLoading: classesLoading } = useCollection(classesQuery);
+  
+  // For now, pending queries are hardcoded as it requires more complex logic
+  const pendingQueries = 0;
+
+  const stats = [
+    { title: "Total Students", value: allStudents?.length ?? 0, icon: Users, isLoading: allStudentsLoading },
+    { title: "Total Teachers", value: teachers?.length ?? 0, icon: BookUser, isLoading: teachersLoading },
+    { title: "Classes", value: classes?.length ?? 0, icon: School, isLoading: classesLoading },
+    { title: "Pending Queries", value: pendingQueries, icon: ClipboardCheck, isLoading: false },
+  ]
+
+  if (isUserLoading) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Welcome, Admin!</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Welcome, {user?.displayName || 'Admin'}!</h1>
         <p className="text-muted-foreground">Here's an overview of your school's activities.</p>
       </div>
 
@@ -42,8 +80,8 @@ export default function Dashboard() {
                     <stat.icon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <p className="text-xs text-muted-foreground">{stat.change}</p>
+                    {stat.isLoading ? <div className="text-2xl font-bold animate-pulse">...</div> : <div className="text-2xl font-bold">{stat.value}</div>}
+                    {/* <p className="text-xs text-muted-foreground">{stat.change}</p> */}
                 </CardContent>
             </Card>
         ))}
@@ -66,18 +104,28 @@ export default function Dashboard() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {recentStudents.map((student) => (
+                        {studentsLoading && Array.from({length: 5}).map((_, i) => (
+                            <TableRow key={i}>
+                                <TableCell colSpan={4} className="text-center">Loading...</TableCell>
+                            </TableRow>
+                        ))}
+                        {recentStudents && recentStudents.map((student) => (
                             <TableRow key={student.id}>
-                                <TableCell className="font-medium">{student.name}</TableCell>
-                                <TableCell>{student.class} - {student.section}</TableCell>
-                                <TableCell>{student.parentName}</TableCell>
+                                <TableCell className="font-medium">{student.fullName}</TableCell>
+                                <TableCell>{student.classSectionId}</TableCell>
+                                <TableCell>{student.parentGuardianName}</TableCell>
                                 <TableCell>
-                                    <Badge variant={student.status === 'Active' ? 'default' : 'destructive'} className="bg-green-500 hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-white">
-                                        {student.status}
+                                    <Badge variant={'default'} className="bg-green-500 hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800 text-white dark:text-white">
+                                        Active
                                     </Badge>
                                 </TableCell>
                             </TableRow>
                         ))}
+                         {recentStudents?.length === 0 && !studentsLoading && (
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-center">No recent students found.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -96,12 +144,22 @@ export default function Dashboard() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {mockTeachers.slice(0, 5).map((teacher) => (
-                            <TableRow key={teacher.id}>
-                                <TableCell className="font-medium">{teacher.name}</TableCell>
-                                <TableCell>{teacher.contact}</TableCell>
+                        {teachersLoading && Array.from({length: 5}).map((_, i) => (
+                             <TableRow key={i}>
+                                <TableCell colSpan={2} className="text-center">Loading...</TableCell>
                             </TableRow>
                         ))}
+                        {teachers && teachers.slice(0, 5).map((teacher) => (
+                            <TableRow key={teacher.id}>
+                                <TableCell className="font-medium">{teacher.name}</TableCell>
+                                <TableCell>{teacher.contactDetails}</TableCell>
+                            </TableRow>
+                        ))}
+                         {teachers?.length === 0 && !teachersLoading && (
+                            <TableRow>
+                                <TableCell colSpan={2} className="text-center">No teachers found.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
