@@ -114,7 +114,6 @@ export default function StudentsPage() {
     const studentData = {
       ...values,
       schoolId: schoolId,
-      udiseCode: schoolId, // Assuming schoolId is the UDISE code for now
       status: 'Active', // Default status
       admissionNumber: `ADM-${Date.now()}`
     };
@@ -401,3 +400,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+    

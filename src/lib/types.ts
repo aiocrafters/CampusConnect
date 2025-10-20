@@ -12,7 +12,6 @@ export interface User {
 export interface Student {
   id: string; 
   admissionNumber: string;
-  udiseCode: string;
   fullName: string;
   dateOfBirth: string; 
   parentGuardianName: string;
@@ -46,3 +45,5 @@ export interface Exam {
   date: string;
   class: string;
 }
+
+    
