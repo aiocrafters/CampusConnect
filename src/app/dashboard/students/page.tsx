@@ -64,7 +64,7 @@ import {
 } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { useFirebase, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, writeBatch } from "firebase/firestore"
 import type { Student } from "@/lib/types"
 import { z } from "zod"
@@ -98,7 +98,6 @@ const studentFormSchema = z.object({
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
   admissionClass: z.string().min(1, "Admission Class is required"),
-  classSectionId: z.string().optional(),
 });
 
 
@@ -164,7 +163,6 @@ export default function StudentsPage() {
       bankName: "",
       ifscCode: "",
       admissionClass: "",
-      classSectionId: "",
     },
   });
 
@@ -195,7 +193,6 @@ export default function StudentsPage() {
           bankName: "",
           ifscCode: "",
           admissionClass: "",
-          classSectionId: "",
         });
       }
     }
@@ -247,7 +244,7 @@ export default function StudentsPage() {
     const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
     
-    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason'> & { schoolId: string } = {
+    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason' | 'classSectionId'> & { schoolId: string } = {
         ...values,
         schoolId,
     };
@@ -264,7 +261,7 @@ export default function StudentsPage() {
       const dataWithStatus: Student = {
         ...dataToSave,
         status: 'Active' as const,
-        classSectionId: '', // Initially empty
+        classSectionId: '', // Initially empty, assigned in classes page
       };
       batch.set(studentDocRef, dataWithStatus);
 
@@ -276,7 +273,7 @@ export default function StudentsPage() {
           timestamp: new Date().toISOString(),
           type: 'ADMISSION',
           description: `Admitted to Class ${values.admissionClass}`,
-          details: { class: values.admissionClass }
+          details: { class: values.admissionClass, academicYear: new Date().getFullYear().toString() }
       });
 
       toast({
@@ -822,3 +819,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+  

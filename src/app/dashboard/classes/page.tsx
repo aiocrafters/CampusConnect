@@ -48,6 +48,7 @@ export default function ClassesPage() {
 
   const studentsForSelectedClass = useMemo(() => {
     if (!selectedClass || !allStudents) return [];
+    // Filter students whose admission class matches the selected class
     return allStudents.filter(student => student.admissionClass === selectedClass);
   }, [selectedClass, allStudents]);
 
@@ -123,7 +124,7 @@ export default function ClassesPage() {
                                         <TableCell>{student.admissionNumber}</TableCell>
                                         <TableCell>
                                              <Select 
-                                                value={student.classSectionId}
+                                                value={student.classSectionId || ''}
                                                 onValueChange={(newSectionId) => handleStudentSectionChange(student.id, newSectionId)}
                                                 disabled={sectionsForSelectedClass.length === 0}
                                             >
@@ -155,3 +156,5 @@ export default function ClassesPage() {
     </main>
   )
 }
+
+  
