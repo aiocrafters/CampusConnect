@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import {
@@ -138,7 +139,7 @@ export default function StudentsPage() {
         });
       } else {
         // Reset form for adding a new student
-        const newStudentId = doc(collection(firestore, 'ids')).id;
+        const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
         form.reset({
           id: newStudentId,
           admissionNumber: "",
@@ -157,7 +158,7 @@ export default function StudentsPage() {
         });
       }
     }
-  }, [isSheetOpen, isEditMode, selectedStudent, form, firestore]);
+  }, [isSheetOpen, isEditMode, selectedStudent, form, firestore, schoolId]);
   
   const handleAddNew = () => {
     setIsEditMode(false);
@@ -189,22 +190,26 @@ export default function StudentsPage() {
     
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
 
+    const dataToSave = {
+      ...values,
+      schoolId: schoolId,
+    };
+    
     if (isEditMode) {
       // Update existing document
-      updateDocumentNonBlocking(studentDocRef, values);
+      updateDocumentNonBlocking(studentDocRef, dataToSave);
       toast({
         title: "Student Updated",
         description: `${values.fullName}'s information has been updated.`,
       });
     } else {
       // Create new document
-      const dataToSave = {
-        ...values,
-        schoolId: schoolId,
+      const dataWithStatus = {
+        ...dataToSave,
         status: 'Active',
       };
       
-      setDocumentNonBlocking(studentDocRef, dataToSave, { merge: false });
+      setDocumentNonBlocking(studentDocRef, dataWithStatus, { merge: false });
       toast({
         title: "Student Added",
         description: `${values.fullName} has been added to the student list.`,
@@ -644,4 +649,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
 
