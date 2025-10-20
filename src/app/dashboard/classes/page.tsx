@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -37,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import type { Teacher } from "@/lib/types"
+import { Badge } from "@/components/ui/badge"
 
 // Based on backend.json
 interface ClassSection {
@@ -181,11 +181,17 @@ export default function ClassesPage() {
     setSelectedSection(null);
   }
 
+  const getSectionsForClass = (className: string) => {
+    if (!allClassSections) return [];
+    return allClassSections.filter(section => section.className === className);
+  };
+
+
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
       <Card>
         <CardHeader>
-          <CardTitle>Class & Section Management</CardTitle>
+          <CardTitle>Class &amp; Section Management</CardTitle>
           <CardDescription>
             Manage sections for each class and assign an in-charge teacher.
           </CardDescription>
@@ -196,21 +202,48 @@ export default function ClassesPage() {
               <TableRow>
                 <TableHead className="w-[100px]">Serial No.</TableHead>
                 <TableHead>Class Name</TableHead>
+                <TableHead>Sections</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {predefinedClasses.map((className, index) => (
+              {classSectionsLoading && predefinedClasses.map((className, index) => (
                 <TableRow key={className}>
                   <TableCell className="font-medium">{index + 1}</TableCell>
                   <TableCell>{className}</TableCell>
+                  <TableCell>Loading...</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" onClick={() => handleManageSections(className)}>
+                    <Button variant="outline" disabled>
                       Manage Sections
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {!classSectionsLoading && predefinedClasses.map((className, index) => {
+                const sections = getSectionsForClass(className);
+                return (
+                    <TableRow key={className}>
+                        <TableCell className="font-medium">{index + 1}</TableCell>
+                        <TableCell>{className}</TableCell>
+                        <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                                {sections.length > 0 ? (
+                                    sections.map(section => (
+                                        <Badge key={section.id} variant="secondary">{section.sectionName}</Badge>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">No Sections</span>
+                                )}
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="outline" onClick={() => handleManageSections(className)}>
+                            Manage Sections
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -360,5 +393,3 @@ export default function ClassesPage() {
     </main>
   )
 }
-
-    
