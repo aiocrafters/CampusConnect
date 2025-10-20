@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import {
@@ -46,6 +45,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -53,7 +61,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase"
+import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
 import type { Student } from "@/lib/types"
 import { z } from "zod"
@@ -87,6 +95,10 @@ export default function StudentsPage() {
   const schoolId = user?.uid;
   const { toast } = useToast();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
 
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -116,26 +128,53 @@ export default function StudentsPage() {
   });
 
   useEffect(() => {
-    if (isSheetOpen && firestore) {
-      const newStudentId = doc(collection(firestore, 'ids')).id;
-      form.reset({
-        id: newStudentId,
-        admissionNumber: "",
-        admissionDate: format(new Date(), 'yyyy-MM-dd'),
-        fullName: "",
-        pen: "",
-        dateOfBirth: "",
-        parentGuardianName: "",
-        motherName: "",
-        address: "",
-        aadhaarNumber: "",
-        bankAccountNumber: "",
-        bankName: "",
-        ifscCode: "",
-        classSectionId: "",
-      });
+    if (isSheetOpen) {
+      if (isEditMode && selectedStudent) {
+        // Populate form for editing
+        form.reset({
+          ...selectedStudent,
+          dateOfBirth: selectedStudent.dateOfBirth ? format(new Date(selectedStudent.dateOfBirth), 'yyyy-MM-dd') : '',
+          admissionDate: selectedStudent.admissionDate ? format(new Date(selectedStudent.admissionDate), 'yyyy-MM-dd') : '',
+        });
+      } else {
+        // Reset form for adding a new student
+        const newStudentId = doc(collection(firestore, 'ids')).id;
+        form.reset({
+          id: newStudentId,
+          admissionNumber: "",
+          admissionDate: format(new Date(), 'yyyy-MM-dd'),
+          fullName: "",
+          pen: "",
+          dateOfBirth: "",
+          parentGuardianName: "",
+          motherName: "",
+          address: "",
+          aadhaarNumber: "",
+          bankAccountNumber: "",
+          bankName: "",
+          ifscCode: "",
+          classSectionId: "",
+        });
+      }
     }
-  }, [isSheetOpen, form, firestore]);
+  }, [isSheetOpen, isEditMode, selectedStudent, form, firestore]);
+  
+  const handleAddNew = () => {
+    setIsEditMode(false);
+    setSelectedStudent(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEdit = (student: Student) => {
+    setIsEditMode(true);
+    setSelectedStudent(student);
+    setIsSheetOpen(true);
+  };
+  
+  const handleView = (student: Student) => {
+    setSelectedStudent(student);
+    setIsViewDialogOpen(true);
+  }
 
 
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
@@ -150,20 +189,32 @@ export default function StudentsPage() {
     
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
 
-    const dataToSave = {
-      ...values,
-      schoolId: schoolId,
-      status: 'Active',
-    };
-    
-    setDocumentNonBlocking(studentDocRef, dataToSave, { merge: false });
-    
-    toast({
-      title: "Student Added",
-      description: `${values.fullName} has been added to the student list.`,
-    });
+    if (isEditMode) {
+      // Update existing document
+      updateDocumentNonBlocking(studentDocRef, values);
+      toast({
+        title: "Student Updated",
+        description: `${values.fullName}'s information has been updated.`,
+      });
+    } else {
+      // Create new document
+      const dataToSave = {
+        ...values,
+        schoolId: schoolId,
+        status: 'Active',
+      };
+      
+      setDocumentNonBlocking(studentDocRef, dataToSave, { merge: false });
+      toast({
+        title: "Student Added",
+        description: `${values.fullName} has been added to the student list.`,
+      });
+    }
+
     form.reset();
     setIsSheetOpen(false);
+    setIsEditMode(false);
+    setSelectedStudent(null);
   }
   
   const classOptions = ["LKG", "UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
@@ -186,7 +237,7 @@ export default function StudentsPage() {
             </Button>
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
-                <Button size="sm" className="h-8 gap-1">
+                <Button size="sm" className="h-8 gap-1" onClick={handleAddNew}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                     Add Student
@@ -195,9 +246,9 @@ export default function StudentsPage() {
               </SheetTrigger>
               <SheetContent className="sm:max-w-2xl">
                 <SheetHeader>
-                  <SheetTitle>Add a New Student</SheetTitle>
+                  <SheetTitle>{isEditMode ? 'Edit Student Details' : 'Add a New Student'}</SheetTitle>
                   <SheetDescription>
-                    Fill in the details below to add a new student to the system.
+                   {isEditMode ? 'Update the student\'s information below.' : 'Fill in the details below to add a new student to the system.'}
                   </SheetDescription>
                 </SheetHeader>
                 <Form {...form}>
@@ -403,7 +454,7 @@ export default function StudentsPage() {
                       <SheetClose asChild>
                         <Button variant="outline">Cancel</Button>
                       </SheetClose>
-                      <Button type="submit">Save Student</Button>
+                      <Button type="submit">{isEditMode ? 'Save Changes' : 'Save Student'}</Button>
                     </SheetFooter>
                   </form>
                 </Form>
@@ -424,72 +475,173 @@ export default function StudentsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Admission No.</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Admission Date</TableHead>
-                    <TableHead>Parent Name</TableHead>
-                    <TableHead>
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {studentsLoading && (
+              <ScrollArea className="w-full whitespace-nowrap">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center">
-                        Loading student data...
+                      <TableHead>Student ID</TableHead>
+                      <TableHead>Admission No.</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Admission Date</TableHead>
+                      <TableHead>DOB</TableHead>
+                      <TableHead>Admission Class</TableHead>
+                      <TableHead>Father's Name</TableHead>
+                      <TableHead>Mother's Name</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>PEN</TableHead>
+                      <TableHead>Aadhar</TableHead>
+                      <TableHead>Bank Acc No.</TableHead>
+                      <TableHead>Bank Name</TableHead>
+                      <TableHead>IFSC</TableHead>
+                      <TableHead>
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {studentsLoading && (
+                      <TableRow>
+                        <TableCell colSpan={16} className="text-center">
+                          Loading student data...
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!studentsLoading && students?.length === 0 && (
+                       <TableRow>
+                        <TableCell colSpan={16} className="text-center">
+                          No students found. Add one to get started.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {students && students.map(student => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
+                      <TableCell className="font-medium">{student.admissionNumber}</TableCell>
+                      <TableCell>{student.fullName}</TableCell>
+                      <TableCell>
+                         <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
+                            {student.status}
+                          </Badge>
+                      </TableCell>
+                      <TableCell>{student.admissionDate}</TableCell>
+                      <TableCell>{student.dateOfBirth}</TableCell>
+                      <TableCell>{student.classSectionId}</TableCell>
+                      <TableCell>{student.parentGuardianName}</TableCell>
+                      <TableCell>{student.motherName}</TableCell>
+                      <TableCell className="truncate max-w-xs">{student.address}</TableCell>
+                      <TableCell>{student.pen}</TableCell>
+                      <TableCell>{student.aadhaarNumber}</TableCell>
+                      <TableCell>{student.bankAccountNumber}</TableCell>
+                      <TableCell>{student.bankName}</TableCell>
+                      <TableCell>{student.ifscCode}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  )}
-                  {!studentsLoading && students?.length === 0 && (
-                     <TableRow>
-                      <TableCell colSpan={7} className="text-center">
-                        No students found. Add one to get started.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {students && students.map(student => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
-                    <TableCell className="font-medium">{student.admissionNumber}</TableCell>
-                    <TableCell>{student.fullName}</TableCell>
-                    <TableCell>
-                       <Badge variant={student.status === 'Active' ? 'default' : 'secondary'} className={student.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                          {student.status}
-                        </Badge>
-                    </TableCell>
-                    <TableCell>{student.admissionDate}</TableCell>
-                    <TableCell>{student.parentGuardianName}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Student Details</DialogTitle>
+            <DialogDescription>
+              Full information for {selectedStudent?.fullName}.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedStudent && (
+             <ScrollArea className="max-h-[60vh]">
+              <div className="grid gap-4 py-4 px-4 text-sm">
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Student ID</span>
+                  <span>{selectedStudent.id}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Admission No.</span>
+                  <span>{selectedStudent.admissionNumber}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Full Name</span>
+                  <span>{selectedStudent.fullName}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Admission Date</span>
+                  <span>{selectedStudent.admissionDate}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Date of Birth</span>
+                  <span>{selectedStudent.dateOfBirth}</span>
+                </div>
+                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Admission Class</span>
+                  <span>{selectedStudent.classSectionId}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Father's Name</span>
+                  <span>{selectedStudent.parentGuardianName}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Mother's Name</span>
+                  <span>{selectedStudent.motherName}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Address</span>
+                  <span className="break-words">{selectedStudent.address}</span>
+                </div>
+                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Student PEN</span>
+                  <span>{selectedStudent.pen}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Aadhar Number</span>
+                  <span>{selectedStudent.aadhaarNumber}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Bank Account No.</span>
+                  <span>{selectedStudent.bankAccountNumber}</span>
+                </div>
+                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Bank Name</span>
+                  <span>{selectedStudent.bankName}</span>
+                </div>
+                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">IFSC Code</span>
+                  <span>{selectedStudent.ifscCode}</span>
+                </div>
+                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span className="font-semibold text-muted-foreground">Status</span>
+                   <Badge variant={selectedStudent.status === 'Active' ? 'default' : 'secondary'} className={`${selectedStudent.status === 'Active' ? 'bg-green-500' : ''} w-fit`}>
+                      {selectedStudent.status}
+                    </Badge>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
 
-    
