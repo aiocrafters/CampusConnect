@@ -99,7 +99,7 @@ export function DashboardSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>
-                            <Link href="#">
+                            <Link href="/dashboard/settings">
                                 <Settings />
                                 <span>Settings</span>
                             </Link>
