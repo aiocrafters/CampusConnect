@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -35,6 +36,7 @@ const adminNavItems = [
   { href: "/dashboard/students", icon: Users, label: "Students" },
   { href: "/dashboard/teachers", icon: BookUser, label: "Teachers" },
   { href: "/dashboard/classes", icon: SchoolIcon, label: "Classes" },
+  { href: "/dashboard/sections", icon: Users, label: "Sections" },
   { href: "/dashboard/subjects", icon: BookOpen, label: "Subjects" },
   { href: "/dashboard/exams", icon: ClipboardList, label: "Exams" },
   { href: "/dashboard/reports", icon: FileText, label: "Reports" },

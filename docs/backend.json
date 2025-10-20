@@ -304,6 +304,31 @@
         "subjectName"
       ]
     },
+    "MasterClass": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MasterClass",
+      "type": "object",
+      "description": "Represents a master class for a school (e.g., Grade 1, UKG).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MasterClass entity."
+        },
+        "schoolId": {
+          "type": "string",
+          "description": "Reference to School."
+        },
+        "className": {
+          "type": "string",
+          "description": "The name of the class."
+        }
+      },
+      "required": [
+        "id",
+        "schoolId",
+        "className"
+      ]
+    },
     "PerformanceRecord": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PerformanceRecord",
@@ -499,6 +524,26 @@
             {
               "name": "masterSubjectId",
               "description": "Unique identifier for the master subject."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/schools/{schoolId}/masterClasses/{masterClassId}",
+        "definition": {
+          "entityName": "MasterClass",
+          "schema": {
+            "$ref": "#/backend/entities/MasterClass"
+          },
+          "description": "Collection for master classes within a school.",
+          "params": [
+            {
+              "name": "schoolId",
+              "description": "Unique identifier for the school."
+            },
+            {
+              "name": "masterClassId",
+              "description": "Unique identifier for the master class."
             }
           ]
         }
