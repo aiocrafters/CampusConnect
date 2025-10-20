@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "login-background",
+      "description": "A modern school library with students studying",
+      "imageUrl": "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzY2hvb2wlMjBsaWJyYXJ5fGVufDB8fHx8MTc2MDg3OTMyNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "school library"
+    },
+    {
+      "id": "campus-connect-logo",
+      "description": "Logo for CampusConnect",
+      "imageUrl": "https://images.unsplash.com/photo-1646902089291-a103f19ee8cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxlZHVjYXRpb24lMjBsb2dvfGVufDB8fHx8MTc2MDkyMDc0MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "education logo"
+    },
+    {
+      "id": "user-avatar-1",
+      "description": "Avatar for a user",
+      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjA5MjcyMzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "Avatar for a teacher",
+      "imageUrl": "https://images.unsplash.com/photo-1752649935791-46de93c304f5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx0ZWFjaGVyJTIwcHJvZmVzc2lvbmFsfGVufDB8fHx8MTc2MDkwNzAzMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "teacher professional"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "Avatar for a student",
+      "imageUrl": "https://images.unsplash.com/photo-1631131428457-3c14bdcb81d4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxzdHVkZW50JTIwc21pbGluZ3xlbnwwfHx8fDE3NjA5NjgyNjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "student smiling"
+    }
+  ]
 }
