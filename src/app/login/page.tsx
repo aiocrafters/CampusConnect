@@ -10,19 +10,41 @@ import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFirebase } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useState } from "react";
 
 export default function LoginPage() {
   const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
   const router = useRouter();
   const { toast } = useToast();
+  const { auth } = useFirebase();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast({
-      title: "Login Successful",
-      description: "Welcome back! Redirecting you to the dashboard.",
-    });
-    router.push('/dashboard');
+    setIsLoading(true);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({
+        title: "Login Successful",
+        description: "Welcome back! Redirecting you to the dashboard.",
+      });
+      router.push('/dashboard');
+    } catch (error) {
+      console.error("Login error", error);
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Invalid credentials. Please check your email and password.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -53,9 +75,11 @@ export default function LoginPage() {
                     <Label htmlFor="email">Email / Student ID</Label>
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="m@example.com"
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -68,10 +92,10 @@ export default function LoginPage() {
                         Forgot your password?
                       </Link>
                     </div>
-                    <Input id="password" type="password" placeholder="••••••••" required />
+                    <Input id="password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} />
                   </div>
-                  <Button type="submit" className="w-full">
-                    Login
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Logging in...' : 'Login'}
                   </Button>
                 </div>
               </form>
