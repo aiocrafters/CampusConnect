@@ -50,7 +50,7 @@ export default function SubjectsPage() {
   
   const classSectionsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return query(collectionGroup(firestore, 'classSections'), where('schoolId', '==', schoolId));
+    return query(collection(firestore, `schools/${schoolId}/classSections`));
   }, [firestore, schoolId]);
   const { data: classSections, isLoading: classSectionsLoading } = useCollection<ClassSection>(classSectionsQuery);
   
