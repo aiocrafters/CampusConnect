@@ -12,7 +12,7 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase } from "@/firebase";
-import { signInWithEmailAndPassword, query, collection, where, getDocs } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -29,12 +29,14 @@ export default function LoginPage() {
     const role = searchParams.get('role');
     if (role === 'student') {
       setActiveTab('student');
+    } else if (role === 'teacher') {
+      setActiveTab('teacher');
     } else {
       setActiveTab('admin');
     }
   }, [searchParams]);
 
-  const handleAdminLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdminTeacherLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     const formData = new FormData(e.currentTarget);
@@ -106,12 +108,14 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="admin">Admin / Teacher</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="admin">Admin</TabsTrigger>
+                  <TabsTrigger value="teacher">Teacher</TabsTrigger>
                   <TabsTrigger value="student">Student</TabsTrigger>
                 </TabsList>
                 <TabsContent value="admin">
-                  <form onSubmit={handleAdminLogin} className="pt-4">
+                  <form onSubmit={handleAdminTeacherLogin} className="pt-4">
+                     <p className="text-sm text-muted-foreground text-center mb-4">For school administrators.</p>
                     <div className="grid gap-4">
                       <div className="grid gap-2">
                         <Label htmlFor="email">Email</Label>
@@ -119,7 +123,7 @@ export default function LoginPage() {
                           id="email"
                           name="email"
                           type="email"
-                          placeholder="m@example.com"
+                          placeholder="admin@example.com"
                           required
                           disabled={isLoading}
                         />
@@ -137,13 +141,47 @@ export default function LoginPage() {
                         <Input id="password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} />
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Logging in...' : 'Login'}
+                        {isLoading ? 'Logging in...' : 'Login as Admin'}
+                      </Button>
+                    </div>
+                  </form>
+                </TabsContent>
+                <TabsContent value="teacher">
+                  <form onSubmit={handleAdminTeacherLogin} className="pt-4">
+                    <p className="text-sm text-muted-foreground text-center mb-4">For registered school teachers.</p>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="teacher-email">Email</Label>
+                        <Input
+                          id="teacher-email"
+                          name="email"
+                          type="email"
+                          placeholder="teacher@example.com"
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <div className="flex items-center">
+                          <Label htmlFor="teacher-password">Password</Label>
+                          <Link
+                            href="#"
+                            className="ml-auto inline-block text-sm underline"
+                          >
+                            Forgot your password?
+                          </Link>
+                        </div>
+                        <Input id="teacher-password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading ? 'Logging in...' : 'Login as Teacher'}
                       </Button>
                     </div>
                   </form>
                 </TabsContent>
                 <TabsContent value="student">
                    <form onSubmit={handleStudentLogin} className="pt-4">
+                    <p className="text-sm text-muted-foreground text-center mb-4">For enrolled students.</p>
                     <div className="grid gap-4">
                       <div className="grid gap-2">
                         <Label htmlFor="admissionNumber">Admission Number</Label>
@@ -161,7 +199,7 @@ export default function LoginPage() {
                         <Input id="dob" name="dob" type="date" required disabled={isLoading} />
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Logging in...' : 'Login'}
+                        {isLoading ? 'Logging in...' : 'Login as Student'}
                       </Button>
                     </div>
                   </form>

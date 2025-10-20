@@ -44,7 +44,10 @@ export default function LandingPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem asChild>
-                  <Link href="/login?role=admin">Admin/Teacher Login</Link>
+                  <Link href="/login?role=admin">Admin Login</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/login?role=teacher">Teacher Login</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/login?role=student">Student Login</Link>
