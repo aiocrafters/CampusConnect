@@ -3,7 +3,7 @@
 
 import { useMemo } from "react"
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, collectionGroup, query, where } from "firebase/firestore"
+import { collection, query } from "firebase/firestore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Teacher } from "@/lib/types"
@@ -38,7 +38,7 @@ export default function SubjectsPage() {
   // Data fetching
   const subjectsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return query(collectionGroup(firestore, 'subjects'), where('schoolId', '==', schoolId));
+    return query(collection(firestore, `schools/${schoolId}/subjects`));
   }, [firestore, schoolId]);
   const { data: subjects, isLoading: subjectsLoading } = useCollection<Subject>(subjectsQuery);
   
