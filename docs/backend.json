@@ -279,6 +279,31 @@
         "teacherId"
       ]
     },
+    "MasterSubject": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MasterSubject",
+      "type": "object",
+      "description": "Represents a master subject for a school.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MasterSubject entity."
+        },
+        "schoolId": {
+          "type": "string",
+          "description": "Reference to School."
+        },
+        "subjectName": {
+          "type": "string",
+          "description": "The name of the subject."
+        }
+      },
+      "required": [
+        "id",
+        "schoolId",
+        "subjectName"
+      ]
+    },
     "PerformanceRecord": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PerformanceRecord",
@@ -454,6 +479,26 @@
             {
               "name": "examId",
               "description": "Unique identifier for the exam."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/schools/{schoolId}/masterSubjects/{masterSubjectId}",
+        "definition": {
+          "entityName": "MasterSubject",
+          "schema": {
+            "$ref": "#/backend/entities/MasterSubject"
+          },
+          "description": "Collection for master subjects within a school.",
+          "params": [
+            {
+              "name": "schoolId",
+              "description": "Unique identifier for the school."
+            },
+            {
+              "name": "masterSubjectId",
+              "description": "Unique identifier for the master subject."
             }
           ]
         }

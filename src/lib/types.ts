@@ -59,6 +59,10 @@ export interface Exam {
   class: string;
 }
 
-    
+export interface MasterSubject {
+  id: string;
+  schoolId: string;
+  subjectName: string;
+}
 
     
