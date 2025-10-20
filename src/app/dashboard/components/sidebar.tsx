@@ -22,6 +22,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  BookOpen,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -34,6 +35,7 @@ const adminNavItems = [
   { href: "/dashboard/students", icon: Users, label: "Students" },
   { href: "/dashboard/teachers", icon: BookUser, label: "Teachers" },
   { href: "/dashboard/classes", icon: SchoolIcon, label: "Classes" },
+  { href: "/dashboard/subjects", icon: BookOpen, label: "Subjects" },
   { href: "/dashboard/exams", icon: ClipboardList, label: "Exams" },
   { href: "/dashboard/reports", icon: FileText, label: "Reports" },
 ];
