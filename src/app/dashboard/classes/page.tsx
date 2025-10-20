@@ -83,15 +83,7 @@ export default function ClassesPage() {
 
   const classOptions = useMemo(() => {
     if (!masterClasses) return [];
-    return masterClasses.sort((a,b) => {
-        const aIsNum = !isNaN(parseInt(a.className));
-        const bIsNum = !isNaN(parseInt(b.className));
-
-        if(aIsNum && bIsNum) return parseInt(a.className) - parseInt(b.className);
-        if(aIsNum) return -1;
-        if(bIsNum) return 1;
-        return a.className.localeCompare(b.className);
-    });
+    return [...masterClasses].sort((a, b) => a.className.localeCompare(b.className));
   }, [masterClasses]);
 
   return (
