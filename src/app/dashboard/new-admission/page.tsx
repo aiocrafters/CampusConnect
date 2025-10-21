@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, doc, writeBatch } from "firebase/firestore"
+import { collection, query, doc, writeBatch, orderBy, limit } from "firebase/firestore"
 import type { Student } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { useRouter } from "next/navigation"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
@@ -53,20 +54,26 @@ export default function NewAdmissionPage() {
   const { toast } = useToast();
   const router = useRouter();
   
-  const studentsQuery = useMemoFirebase(() => {
+  const allStudentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/students`));
   }, [firestore, schoolId]);
+  const { data: allStudents } = useCollection<Student>(allStudentsQuery);
+  
+  const recentStudentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(5));
+  }, [firestore, schoolId]);
+  const { data: recentStudents, isLoading: recentStudentsLoading } = useCollection<Student>(recentStudentsQuery);
 
-  const { data: students } = useCollection<Student>(studentsQuery);
 
   const nextAdmissionNumber = useMemo(() => {
-    if (!students || students.length === 0) {
+    if (!allStudents || allStudents.length === 0) {
       return null;
     }
-    const maxAdmissionNumber = Math.max(...students.map(s => parseInt(s.admissionNumber, 10)).filter(n => !isNaN(n)));
+    const maxAdmissionNumber = Math.max(...allStudents.map(s => parseInt(s.admissionNumber, 10)).filter(n => !isNaN(n)));
     return isFinite(maxAdmissionNumber) ? (maxAdmissionNumber + 1).toString() : null;
-  }, [students]);
+  }, [allStudents]);
 
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
@@ -89,7 +96,8 @@ export default function NewAdmissionPage() {
   });
 
   useEffect(() => {
-      const newStudentId = doc(collection(firestore!, `schools/${schoolId}/students`)).id;
+      if (!firestore || !schoolId) return;
+      const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
       form.reset({
         id: newStudentId,
         admissionNumber: nextAdmissionNumber || "",
@@ -151,23 +159,25 @@ export default function NewAdmissionPage() {
     });
 
     form.reset();
-    const newStudentId = doc(collection(firestore!, `schools/${schoolId}/students`)).id;
-    form.reset({
-      id: newStudentId,
-      admissionNumber: (parseInt(values.admissionNumber, 10) + 1).toString(),
-      admissionDate: format(new Date(), 'yyyy-MM-dd'),
-      fullName: "",
-      pen: "",
-      dateOfBirth: "",
-      parentGuardianName: "",
-      motherName: "",
-      address: "",
-      aadhaarNumber: "",
-      bankAccountNumber: "",
-      bankName: "",
-      ifscCode: "",
-      admissionClass: "",
-    });
+    if(firestore && schoolId) {
+        const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
+        form.reset({
+        id: newStudentId,
+        admissionNumber: (parseInt(values.admissionNumber, 10) + 1).toString(),
+        admissionDate: format(new Date(), 'yyyy-MM-dd'),
+        fullName: "",
+        pen: "",
+        dateOfBirth: "",
+        parentGuardianName: "",
+        motherName: "",
+        address: "",
+        aadhaarNumber: "",
+        bankAccountNumber: "",
+        bankName: "",
+        ifscCode: "",
+        admissionClass: "",
+        });
+    }
   }
   
   const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
@@ -184,7 +194,7 @@ export default function NewAdmissionPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-              <ScrollArea className="h-[calc(100vh-20rem)]">
+              <ScrollArea className="h-[calc(100vh-25rem)]">
                 <div className="grid md:grid-cols-2 gap-6 p-4">
                   <FormField
                     control={form.control}
@@ -398,6 +408,47 @@ export default function NewAdmissionPage() {
           </Form>
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle>Recent Admissions</CardTitle>
+            <CardDescription>A list of the 5 most recently added students.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Admission No.</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Admission Class</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {recentStudentsLoading && Array.from({length: 5}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell colSpan={4} className="text-center">Loading...</TableCell>
+                        </TableRow>
+                    ))}
+                    {recentStudents && recentStudents.map((student) => (
+                        <TableRow key={student.id}>
+                            <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
+                            <TableCell>{student.admissionNumber}</TableCell>
+                            <TableCell>{student.fullName}</TableCell>
+                            <TableCell>{student.admissionClass}</TableCell>
+                        </TableRow>
+                    ))}
+                     {recentStudents?.length === 0 && !recentStudentsLoading && (
+                        <TableRow>
+                            <TableCell colSpan={4} className="text-center">No recent students found.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
     </main>
   )
 }
+
+    
