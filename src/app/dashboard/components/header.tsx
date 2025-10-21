@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -52,10 +53,11 @@ export function DashboardHeader() {
             key={item.href}
             href={item.href}
             className={cn(
-              "transition-colors hover:text-foreground",
+              "flex items-center gap-2 transition-colors hover:text-foreground whitespace-nowrap",
               pathname === item.href ? "text-foreground" : "text-muted-foreground"
             )}
           >
+            <item.icon className="h-5 w-5" />
             {item.label}
           </Link>
         ))}
@@ -85,10 +87,11 @@ export function DashboardHeader() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "transition-colors hover:text-foreground",
+                  "flex items-center gap-2 transition-colors hover:text-foreground",
                    pathname === item.href ? "text-foreground" : "text-muted-foreground"
                 )}
               >
+                <item.icon className="h-5 w-5" />
                 {item.label}
               </Link>
             ))}
