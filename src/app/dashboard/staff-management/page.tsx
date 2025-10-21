@@ -144,7 +144,7 @@ export default function StaffManagementPage() {
           ...selectedStaff,
           dateOfJoining: selectedStaff.dateOfJoining ? format(parseISO(selectedStaff.dateOfJoining), 'yyyy-MM-dd') : '',
           password: "",
-          designationId: selectedStaff.designationId || "",
+          designationId: selectedStaff.designationId || "none",
         });
       } else {
         const newStaffId = doc(collection(firestore!, `schools/${schoolId}/teachers`)).id;
@@ -157,7 +157,7 @@ export default function StaffManagementPage() {
           qualification: "",
           address: "",
           dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
-          designationId: "",
+          designationId: "none",
         });
       }
     }
@@ -270,7 +270,7 @@ export default function StaffManagementPage() {
   }
 
   const getDesignationName = (designationId?: string) => {
-    if (!designationId || !designations) return "Not Assigned";
+    if (!designationId || !designations || designationId === 'none') return "Not Assigned";
     return designations.find(d => d.id === designationId)?.name || "Not Assigned";
   };
 
@@ -452,7 +452,7 @@ export default function StaffManagementPage() {
                         name="role"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Role (for Teachers)</FormLabel>
+                            <FormLabel>Role / Responsibilities (for Staff Member)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
@@ -690,5 +690,3 @@ export default function StaffManagementPage() {
     </main>
   )
 }
-
-    
