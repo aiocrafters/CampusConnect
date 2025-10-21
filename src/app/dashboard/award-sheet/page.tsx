@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -36,7 +37,7 @@ export default function AwardSheetPage() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMarks, setIsLoadingMarks] = useState(false);
   
   // Data Fetching
   const classOptions = ['UKG', ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
@@ -65,7 +66,7 @@ export default function AwardSheetPage() {
     if (!firestore || !schoolId || sectionIds.length === 0) return null;
     return query(collection(firestore, `schools/${schoolId}/students`), where('classSectionId', 'in', sectionIds));
   }, [firestore, schoolId, sectionIds]);
-  const { data: students } = useCollection<Student>(studentsQuery);
+  const { data: students, isLoading: isLoadingStudents } = useCollection<Student>(studentsQuery);
 
 
   const form = useForm<MarksFormData>({
@@ -82,7 +83,7 @@ export default function AwardSheetPage() {
   useEffect(() => {
     const fetchAndSetMarks = async () => {
         if (students && selectedSubject && firestore && schoolId) {
-            setIsLoading(true);
+            setIsLoadingMarks(true);
             const performanceRecordsRef = collection(firestore, `schools/${schoolId}/performanceRecords`);
             const q = query(performanceRecordsRef, 
                 where('schoolId', '==', schoolId),
@@ -101,7 +102,7 @@ export default function AwardSheetPage() {
                 marks: existingMarks.get(student.id) ?? undefined,
             }));
             replace(marksData);
-            setIsLoading(false);
+            setIsLoadingMarks(false);
         } else {
              replace([]);
         }
@@ -198,7 +199,7 @@ export default function AwardSheetPage() {
             </Select>
           </div>
           
-          {selectedSubject && students && (
+          {selectedSubject && (
             <Form {...form}>
               <form>
                 <div className="rounded-md border">
@@ -213,13 +214,18 @@ export default function AwardSheetPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading && (
+                            {isLoadingStudents && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center">Loading students...</TableCell>
+                                </TableRow>
+                            )}
+                            {isLoadingMarks && !isLoadingStudents && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center">Loading student marks...</TableCell>
                                 </TableRow>
                             )}
-                            {!isLoading && fields.map((field, index) => {
-                                const student = students.find(s => s.id === field.studentId);
+                            {!isLoadingStudents && !isLoadingMarks && fields.map((field, index) => {
+                                const student = students?.find(s => s.id === field.studentId);
                                 if (!student) return null;
 
                                 return (
@@ -255,6 +261,11 @@ export default function AwardSheetPage() {
                                     </TableRow>
                                 );
                             })}
+                             {!isLoadingStudents && students?.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center">No students found for this class.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </div>
@@ -266,3 +277,5 @@ export default function AwardSheetPage() {
     </main>
   );
 }
+
+    
