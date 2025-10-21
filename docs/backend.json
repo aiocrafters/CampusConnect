@@ -83,6 +83,10 @@
           "type": "string",
           "description": "The name of the student's parent or guardian."
         },
+        "motherName": {
+          "type": "string",
+          "description": "The name of the student's mother."
+        },
         "address": {
           "type": "string",
           "description": "The address of the student."
@@ -111,6 +115,13 @@
         },
         "ifscCode": {
           "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Inactive"]
+        },
+        "inactiveReason": {
+            "type": "string"
         }
       },
       "required": [
@@ -376,7 +387,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the PerformanceRecord entity (e.g., studentId_subjectId)."
+          "description": "Unique identifier for the PerformanceRecord entity (e.g., studentId_subjectId_examId)."
         },
         "studentId": {
           "type": "string",
@@ -651,21 +662,17 @@
         }
       },
       {
-        "path": "/schools/{schoolId}/students/{studentId}/performanceRecords/{performanceRecordId}",
+        "path": "/schools/{schoolId}/performanceRecords/{performanceRecordId}",
         "definition": {
           "entityName": "PerformanceRecord",
           "schema": {
             "$ref": "#/backend/entities/PerformanceRecord"
           },
-          "description": "Collection for performance records for a student. Includes denormalized 'schoolId' for authorization independence.",
+          "description": "Collection for performance records for students, organized at the school level.",
           "params": [
             {
               "name": "schoolId",
               "description": "Unique identifier for the school."
-            },
-            {
-              "name": "studentId",
-              "description": "Unique identifier for the student."
             },
             {
               "name": "performanceRecordId",

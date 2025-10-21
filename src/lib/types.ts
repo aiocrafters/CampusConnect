@@ -76,6 +76,7 @@ export interface Subject {
     teacherId: string;
     maxMarks: number;
     examDate: string;
+    schoolId: string;
 }
 
 export interface MasterSubject {
@@ -121,3 +122,4 @@ export interface PerformanceRecord {
     
 
     
+

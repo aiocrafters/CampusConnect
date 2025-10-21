@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -81,9 +81,10 @@ export default function AwardSheetPage() {
     const fetchAndSetMarks = async () => {
         if (students && selectedSubject && firestore && schoolId) {
             setIsLoading(true);
-            const performanceRecordsRef = collectionGroup(firestore, 'performanceRecords');
+            const performanceRecordsRef = collection(firestore, `schools/${schoolId}/performanceRecords`);
             const q = query(performanceRecordsRef, 
-                where('schoolId', '==', schoolId), 
+                where('schoolId', '==', schoolId),
+                where('examId', '==', selectedSubject.examId),
                 where('subjectId', '==', selectedSubject.id)
             );
             const recordsSnapshot = await getDocs(q);
@@ -116,8 +117,8 @@ export default function AwardSheetPage() {
     let recordsSaved = 0;
     data.marks.forEach((markEntry) => {
         if (markEntry.marks !== undefined && markEntry.marks !== null) {
-            const recordId = `${markEntry.studentId}_${selectedSubject.id}`;
-            const recordRef = doc(firestore, `schools/${schoolId}/students/${markEntry.studentId}/performanceRecords`, recordId);
+            const recordId = `${markEntry.studentId}_${selectedSubject.id}_${selectedSubject.examId}`;
+            const recordRef = doc(firestore, `schools/${schoolId}/performanceRecords`, recordId);
             
             const performanceRecord: PerformanceRecord = {
                 id: recordId,
