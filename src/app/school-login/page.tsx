@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -5,13 +6,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase } from "@/firebase";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
 
 export default function SchoolLoginPage() {
@@ -19,36 +18,8 @@ export default function SchoolLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { auth } = useFirebase();
-  const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-
-    try {
-      if (!auth) throw new Error("Auth service not available");
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back! Redirecting you to the dashboard.",
-      });
-      router.push('/dashboard');
-    } catch (error) {
-      console.error("Login error", error);
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid credentials. Please check your email and password.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
   const handleGoogleSignIn = async () => {
     if (!auth) {
         toast({ variant: "destructive", title: "Authentication service not ready." });
@@ -87,45 +58,17 @@ export default function SchoolLoginPage() {
           </div>
           <Card className="z-20">
             <CardHeader>
-              <CardTitle className="text-2xl">School Login</CardTitle>
+              <CardTitle className="text-2xl">School Admin Login</CardTitle>
               <CardDescription>
-                Enter your credentials to access your dashboard.
+                Use your Google account to access your dashboard.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin}>
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      placeholder="admin@example.com"
-                      required
-                      disabled={isLoading || isGoogleLoading}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <div className="flex items-center">
-                      <Label htmlFor="password">Password</Label>
-                      <Link
-                        href="#"
-                        className="ml-auto inline-block text-sm underline"
-                      >
-                        Forgot your password?
-                      </Link>
-                    </div>
-                    <Input id="password" name="password" type="password" placeholder="••••••••" required disabled={isLoading || isGoogleLoading} />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-                    {isLoading ? 'Logging in...' : 'Login'}
-                  </Button>
-                  <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+              <div className="grid gap-4">
+                  <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={isGoogleLoading}>
                     {isGoogleLoading ? 'Signing in...' : 'Sign in with Google'}
                   </Button>
-                </div>
-              </form>
+              </div>
             </CardContent>
           </Card>
           <div className="relative z-20 mt-4 text-center text-sm">
