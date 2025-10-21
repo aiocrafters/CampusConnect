@@ -54,12 +54,6 @@ export default function AddStudentPage() {
   const { toast } = useToast();
   const router = useRouter();
   
-  const allStudentsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/students`));
-  }, [firestore, schoolId]);
-  const { data: allStudents } = useCollection<Student>(allStudentsQuery);
-  
   const recentStudentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(5));
@@ -72,14 +66,6 @@ export default function AddStudentPage() {
   }, [firestore, schoolId]);
   const { data: classSections } = useCollection<ClassSection>(classSectionsQuery);
 
-
-  const nextAdmissionNumber = useMemo(() => {
-    if (!allStudents || allStudents.length === 0) {
-      return null;
-    }
-    const maxAdmissionNumber = Math.max(...allStudents.map(s => parseInt(s.admissionNumber, 10)).filter(n => !isNaN(n)));
-    return isFinite(maxAdmissionNumber) ? (maxAdmissionNumber + 1).toString() : null;
-  }, [allStudents]);
 
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
@@ -101,26 +87,30 @@ export default function AddStudentPage() {
     },
   });
 
+  const resetForm = () => {
+    if (!firestore || !schoolId) return;
+    const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
+    form.reset({
+      id: newStudentId,
+      admissionNumber: "",
+      admissionDate: format(new Date(), 'yyyy-MM-dd'),
+      fullName: "",
+      pen: "",
+      dateOfBirth: "",
+      parentGuardianName: "",
+      motherName: "",
+      address: "",
+      aadhaarNumber: "",
+      bankAccountNumber: "",
+      bankName: "",
+      ifscCode: "",
+      admissionClass: "",
+    });
+  }
+
   useEffect(() => {
-      if (!firestore || !schoolId) return;
-      const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
-      form.reset({
-        id: newStudentId,
-        admissionNumber: nextAdmissionNumber || "",
-        admissionDate: format(new Date(), 'yyyy-MM-dd'),
-        fullName: "",
-        pen: "",
-        dateOfBirth: "",
-        parentGuardianName: "",
-        motherName: "",
-        address: "",
-        aadhaarNumber: "",
-        bankAccountNumber: "",
-        bankName: "",
-        ifscCode: "",
-        admissionClass: "",
-      });
-  }, [form, firestore, schoolId, nextAdmissionNumber]);
+      resetForm();
+  }, [firestore, schoolId]);
 
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
     if (!firestore || !schoolId) {
@@ -164,26 +154,7 @@ export default function AddStudentPage() {
       description: `${values.fullName} has been added. You can now send them to their class section below.`,
     });
 
-    form.reset();
-    if(firestore && schoolId) {
-        const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
-        form.reset({
-        id: newStudentId,
-        admissionNumber: (parseInt(values.admissionNumber, 10) + 1).toString(),
-        admissionDate: format(new Date(), 'yyyy-MM-dd'),
-        fullName: "",
-        pen: "",
-        dateOfBirth: "",
-        parentGuardianName: "",
-        motherName: "",
-        address: "",
-        aadhaarNumber: "",
-        bankAccountNumber: "",
-        bankName: "",
-        ifscCode: "",
-        admissionClass: "",
-        });
-    }
+    resetForm();
   }
 
   const handleAssignToSection = async (student: Student) => {
@@ -246,14 +217,8 @@ export default function AddStudentPage() {
                         <Input 
                           placeholder="e.g., 1001" 
                           {...field} 
-                          disabled={!!nextAdmissionNumber} 
                         />
                       </FormControl>
-                       { !nextAdmissionNumber && (
-                        <FormDescription>
-                          Set the starting admission number for your first student.
-                        </FormDescription>
-                       )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -485,3 +450,5 @@ export default function AddStudentPage() {
     </main>
   )
 }
+
+    
