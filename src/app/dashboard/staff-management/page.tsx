@@ -91,10 +91,6 @@ const designationFormSchema = z.object({
   name: z.string().min(2, "Designation name is required."),
 });
 
-const departmentFormSchema = z.object({
-  name: z.string().min(2, "Department name is required."),
-});
-
 
 export default function StaffManagementPage() {
   const { user, firestore, auth } = useFirebase();
@@ -106,7 +102,6 @@ export default function StaffManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDesignationDialogOpen, setIsDesignationDialogOpen] = useState(false);
-  const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -150,11 +145,6 @@ export default function StaffManagementPage() {
     defaultValues: { name: "" },
   });
   
-  const departmentForm = useForm<z.infer<typeof departmentFormSchema>>({
-    resolver: zodResolver(departmentFormSchema),
-    defaultValues: { name: "" },
-  });
-
 
   useEffect(() => {
     if (isSheetOpen) {
@@ -292,22 +282,6 @@ export default function StaffManagementPage() {
     designationForm.reset();
   }
 
-  async function onDepartmentSubmit(values: z.infer<typeof departmentFormSchema>) {
-    if (!firestore || !schoolId) return;
-
-    const departmentId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
-    const departmentRef = doc(firestore, `schools/${schoolId}/departments`, departmentId);
-    
-    setDocumentNonBlocking(departmentRef, {
-      id: departmentId,
-      schoolId: schoolId,
-      name: values.name
-    }, { merge: false });
-
-    toast({ title: "Department Created", description: `The department "${values.name}" has been created.` });
-    departmentForm.reset();
-  }
-
   const getDesignationName = (designationId?: string) => {
     if (!designationId || !designations || designationId === 'none') return "Not Assigned";
     return designations.find(d => d.id === designationId)?.name || "Not Assigned";
@@ -336,12 +310,6 @@ export default function StaffManagementPage() {
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Export
               </span>
-            </Button>
-            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setIsDepartmentDialogOpen(true)}>
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Department
-                </span>
             </Button>
             <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setIsDesignationDialogOpen(true)}>
                 <PlusCircle className="h-3.5 w-3.5" />
@@ -724,52 +692,6 @@ export default function StaffManagementPage() {
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDesignationDialogOpen(false)}>Close</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isDepartmentDialogOpen} onOpenChange={setIsDepartmentDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Manage Departments</DialogTitle>
-                <DialogDescription>
-                    Add a new department or view existing ones.
-                </DialogDescription>
-            </DialogHeader>
-            <Form {...departmentForm}>
-                <form onSubmit={departmentForm.handleSubmit(onDepartmentSubmit)} className="space-y-4">
-                    <FormField
-                        control={departmentForm.control}
-                        name="name"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>New Department Name</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g., Academics, Administration" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <Button type="submit">Create Department</Button>
-                </form>
-            </Form>
-            <div className="mt-6">
-                <h3 className="mb-2 text-sm font-medium text-muted-foreground">Existing Departments</h3>
-                <ScrollArea className="h-40 rounded-md border">
-                    <Table>
-                        <TableBody>
-                            {departmentsLoading && <TableRow><TableCell>Loading...</TableCell></TableRow>}
-                            {departments?.map(d => <TableRow key={d.id}><TableCell>{d.name}</TableCell></TableRow>)}
-                            {!departmentsLoading && departments?.length === 0 && (
-                                <TableRow><TableCell>No departments created yet.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </ScrollArea>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDepartmentDialogOpen(false)}>Close</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
