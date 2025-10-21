@@ -179,7 +179,7 @@
         },
         "sectionInchargeId": {
           "type": "string",
-          "description": "Reference to Teacher who is in charge of the section. (Relationship: Teacher 1:N ClassSection)"
+          "description": "Reference to Staff who is in charge of the section. (Relationship: Staff 1:N ClassSection)"
         }
       },
       "required": [
@@ -189,44 +189,44 @@
         "sectionIdentifier"
       ]
     },
-    "Teacher": {
+    "Staff": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Teacher",
+      "title": "Staff",
       "type": "object",
-      "description": "Represents a teacher or staff member in a school.",
+      "description": "Represents a staff member in a school.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Teacher entity."
+          "description": "Unique identifier for the Staff entity."
         },
         "schoolId": {
           "type": "string",
-          "description": "Reference to School. (Relationship: School 1:N Teacher)"
+          "description": "Reference to School. (Relationship: School 1:N Staff)"
         },
         "name": {
           "type": "string",
-          "description": "The name of the teacher."
+          "description": "The name of the staff member."
         },
         "email": {
           "type": "string",
-          "description": "The email address of the teacher.",
+          "description": "The email address of the staff member.",
           "format": "email"
         },
         "contactNumber": {
           "type": "string",
-          "description": "The contact phone number of the teacher."
+          "description": "The contact phone number of the staff member."
         },
         "qualification": {
           "type": "string",
-          "description": "The academic qualification of the teacher."
+          "description": "The academic qualification of the staff member."
         },
         "address": {
           "type": "string",
-          "description": "The address of the teacher."
+          "description": "The address of the staff member."
         },
         "dateOfJoining": {
           "type": "string",
-          "description": "The date the teacher joined the school.",
+          "description": "The date the staff member joined the school.",
           "format": "date-time"
         },
         "role": {
@@ -337,7 +337,7 @@
         },
         "teacherId": {
           "type": "string",
-          "description": "Reference to Teacher. (Relationship: Teacher 1:N Subject)"
+          "description": "Reference to Staff. (Relationship: Staff 1:N Subject)"
         },
         "maxMarks": {
             "type": "number",
@@ -469,7 +469,7 @@
         },
         "sectionInchargeId": {
           "type": "string",
-          "description": "Reference to Teacher (Section Incharge). (Relationship: Teacher 1:N ClassInchargeQuery)"
+          "description": "Reference to Staff (Section Incharge). (Relationship: Staff 1:N ClassInchargeQuery)"
         },
         "query": {
           "type": "string",
@@ -526,7 +526,8 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google"
     ]
   },
   "firestore": {
@@ -601,21 +602,21 @@
         }
       },
       {
-        "path": "/schools/{schoolId}/teachers/{teacherId}",
+        "path": "/schools/{schoolId}/staff/{staffId}",
         "definition": {
-          "entityName": "Teacher",
+          "entityName": "Staff",
           "schema": {
-            "$ref": "#/backend/entities/Teacher"
+            "$ref": "#/backend/entities/Staff"
           },
-          "description": "Collection for teachers within a school. Includes denormalized 'schoolId' for authorization independence.",
+          "description": "Collection for staff within a school. Includes denormalized 'schoolId' for authorization independence.",
           "params": [
             {
               "name": "schoolId",
               "description": "Unique identifier for the school."
             },
             {
-              "name": "teacherId",
-              "description": "Unique identifier for the teacher."
+              "name": "staffId",
+              "description": "Unique identifier for the staff member."
             }
           ]
         }
@@ -801,6 +802,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support a multi-tenant School Management SaaS application (CampusConnect). Each school operates independently, with data isolation achieved through path-based ownership. Every school's data is stored under a dedicated `/schools/{schoolId}` path, which serves as the root for all school-specific data. This design ensures that security rules can easily enforce access control based on the school ID.  \n\n**Authorization Independence (Denormalization):** To ensure authorization independence and enable atomic operations, the `schoolId` is denormalized into every subcollection document (e.g., `students`, `classSections`, `teachers`, etc.).  This avoids the need for `get()` calls in security rules to verify school ownership, as the `schoolId` is directly available in each document.\n\n**Structural Segregation (Homogeneous Security Posture):** Each collection is dedicated to a single entity type, ensuring that all documents within a collection share the same security requirements.  For example, students are stored in `/schools/{schoolId}/students/{studentId}`, teachers in `/schools/{schoolId}/teachers/{teacherId}`, etc.  This segregation simplifies security rules and prevents accidental exposure of sensitive data.\n\n**Access Modeling:**\n*   **Path-Based Ownership:**  The primary access control mechanism is path-based ownership.  Each entity (student, teacher, classSection, etc.) is owned by a specific school, determined by the `schoolId` in the path.  Security rules can then easily verify that the authenticated user has the appropriate permissions within that school.\n*   **Hierarchical Paths:** The structure utilizes hierarchical paths to represent `1:N` relationships. For example, `/schools/{schoolId}/classSections/{classSectionId}/exams/{examId}` clearly represents that a `School` has many `ClassSections`, and each `ClassSection` has many `Exams`.\n\n**QAPs (Rules are not Filters):** The structure supports secure `list` operations by enforcing that the `schoolId` is always present and validated in security rules.  This prevents unauthorized listing of data across different schools, as the query must specify a valid `schoolId`.\n\n**DBAC:** Permissions are based on `request.auth.uid` and database content only.  For instance, a teacher's access to student performance data is determined by their association with the school and class section, as stored in the database, not by custom claims.\n\nThe structure effectively balances security, scalability, and debuggability, aligning with the core design principles and strategy mandates."
+    "reasoning": "The Firestore structure is designed to support a multi-tenant School Management SaaS application (CampusConnect). Each school operates independently, with data isolation achieved through path-based ownership. Every school's data is stored under a dedicated `/schools/{schoolId}` path, which serves as the root for all school-specific data. This design ensures that security rules can easily enforce access control based on the school ID.  \n\n**Authorization Independence (Denormalization):** To ensure authorization independence and enable atomic operations, the `schoolId` is denormalized into every subcollection document (e.g., `students`, `classSections`, `staff`, etc.).  This avoids the need for `get()` calls in security rules to verify school ownership, as the `schoolId` is directly available in each document.\n\n**Structural Segregation (Homogeneous Security Posture):** Each collection is dedicated to a single entity type, ensuring that all documents within a collection share the same security requirements.  For example, students are stored in `/schools/{schoolId}/students/{studentId}`, staff in `/schools/{schoolId}/staff/{staffId}`, etc.  This segregation simplifies security rules and prevents accidental exposure of sensitive data.\n\n**Access Modeling:**\n*   **Path-Based Ownership:**  The primary access control mechanism is path-based ownership.  Each entity (student, staff, classSection, etc.) is owned by a specific school, determined by the `schoolId` in the path.  Security rules can then easily verify that the authenticated user has the appropriate permissions within that school.\n*   **Hierarchical Paths:** The structure utilizes hierarchical paths to represent `1:N` relationships. For example, `/schools/{schoolId}/classSections/{classSectionId}/exams/{examId}` clearly represents that a `School` has many `ClassSections`, and each `ClassSection` has many `Exams`.\n\n**QAPs (Rules are not Filters):** The structure supports secure `list` operations by enforcing that the `schoolId` is always present and validated in security rules.  This prevents unauthorized listing of data across different schools, as the query must specify a valid `schoolId`.\n\n**DBAC:** Permissions are based on `request.auth.uid` and database content only.  For instance, a teacher's access to student performance data is determined by their association with the school and class section, as stored in the database, not by custom claims.\n\nThe structure effectively balances security, scalability, and debuggability, aligning with the core design principles and strategy mandates."
   }
 }
