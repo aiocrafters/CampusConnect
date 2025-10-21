@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase } from "@/firebase";
-import { collection, query, where, getDocs, setDoc, doc, writeBatch } from "firebase/firestore";
+import { useFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { collection, query, where, getDocs, setDoc, doc, writeBatch, getDoc } from "firebase/firestore";
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, type User } from "firebase/auth";
 import { useState, useEffect } from "react";
 
@@ -79,59 +79,55 @@ export default function RegisterPage() {
         const contactPhone = formData.get("contact-phone") as string;
         const adminName = formData.get("admin-name") as string;
 
-        try {
-            const batch = writeBatch(firestore);
+        const batch = writeBatch(firestore);
 
-            // 1. Check for phone number uniqueness
-            const phoneIdentifier = `phoneNumber_${contactPhone}`;
-            const uniqueIdRef = doc(firestore, "unique_identifiers", phoneIdentifier);
-            const uniqueIdSnap = await getDoc(uniqueIdRef);
+        const schoolData = {
+            id: user.uid,
+            schoolName,
+            udiseCode,
+            address,
+            contactEmail: user.email,
+            contactPhoneNumber: contactPhone,
+            adminName,
+        };
+        const schoolDocRef = doc(firestore, "schools", user.uid);
+        batch.set(schoolDocRef, schoolData);
 
-            if (uniqueIdSnap.exists()) {
-                throw new Error("This contact phone number is already in use by another school.");
-            }
+        const phoneIdentifier = `phoneNumber_${contactPhone}`;
+        const uniqueIdRef = doc(firestore, "unique_identifiers", phoneIdentifier);
+        batch.set(uniqueIdRef, { schoolId: user.uid });
 
-            // 2. Create school document
-            const schoolData = {
-                id: user.uid,
-                schoolName,
-                udiseCode,
-                address,
-                contactEmail: user.email,
-                contactPhoneNumber: contactPhone,
-                adminName,
-            };
-            const schoolDocRef = doc(firestore, "schools", user.uid);
-            batch.set(schoolDocRef, schoolData);
+        basicClasses.forEach(className => {
+            const classId = doc(collection(firestore, `schools/${user.uid}/masterClasses`)).id;
+            const classRef = doc(firestore, `schools/${user.uid}/masterClasses`, classId);
+            batch.set(classRef, { id: classId, schoolId: user.uid, className });
+        });
 
-            // 3. Create master classes
-            basicClasses.forEach(className => {
-                const classId = doc(collection(firestore, `schools/${user.uid}/masterClasses`)).id;
-                const classRef = doc(firestore, `schools/${user.uid}/masterClasses`, classId);
-                batch.set(classRef, { id: classId, schoolId: user.uid, className });
+        batch.commit()
+            .then(() => {
+                toast({
+                    title: "Registration Successful",
+                    description: "Your school account has been created. Redirecting to dashboard...",
+                });
+                router.push('/dashboard');
+            })
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: `schools/${user.uid}`,
+                    operation: 'write',
+                    requestResourceData: schoolData
+                });
+                errorEmitter.emit('permission-error', permissionError);
+
+                toast({
+                    variant: "destructive",
+                    title: "Registration Failed",
+                    description: "An unexpected error occurred. Please check the developer console for more details.",
+                });
+            })
+            .finally(() => {
+                setIsLoading(false);
             });
-            
-            // 4. Reserve phone number
-            batch.set(uniqueIdRef, { schoolId: user.uid });
-
-            await batch.commit();
-            
-            toast({
-                title: "Registration Successful",
-                description: "Your school account has been created. Redirecting to dashboard...",
-            });
-            router.push('/dashboard');
-
-        } catch (error: any) {
-            console.error("School Registration Error: ", error);
-            toast({
-                variant: "destructive",
-                title: "Registration Failed",
-                description: error.message || "An unexpected error occurred. Please try again.",
-            });
-        } finally {
-            setIsLoading(false);
-        }
     };
   
     return (
@@ -178,7 +174,7 @@ export default function RegisterPage() {
                          <CardHeader className="text-center">
                             <Link href="/" className="flex justify-center items-center gap-2 mb-2">
                                 <BookOpenCheck className="h-8 w-8 text-primary" />
-                                <h1 className="text-3xl font-bold font-headline">CampusConnect</h1>
+                                <h1 className="text-3xl font-bold font-headline">CampusConnect_new</h1>
                             </Link>
                             <CardTitle className="text-2xl">Register Your School</CardTitle>
                             <CardDescription>
@@ -225,4 +221,4 @@ export default function RegisterPage() {
     );
 }
 
-  
+    
