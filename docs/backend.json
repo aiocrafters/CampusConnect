@@ -193,7 +193,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Teacher",
       "type": "object",
-      "description": "Represents a teacher in a school.",
+      "description": "Represents a teacher or staff member in a school.",
       "properties": {
         "id": {
           "type": "string",
@@ -238,6 +238,10 @@
             "type": "string",
             "description": "The primary subject taught by the teacher.",
             "enum": ["General", "English", "Urdu", "Math", "Science", "Social Studies"]
+        },
+        "designationId": {
+            "type": "string",
+            "description": "Reference to Designation, representing the staff member's post."
         }
       },
       "required": [

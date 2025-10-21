@@ -84,6 +84,7 @@ const staffFormSchema = z.object({
   dateOfJoining: z.string().min(1, "Date of joining is required."),
   role: z.enum(['Primary', 'Middle School', 'High School']),
   subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
+  designationId: z.string().optional(),
 });
 
 const designationFormSchema = z.object({
@@ -126,6 +127,7 @@ export default function StaffManagementPage() {
       qualification: "",
       address: "",
       dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
+      designationId: "",
     },
   });
   
@@ -141,7 +143,8 @@ export default function StaffManagementPage() {
         form.reset({
           ...selectedStaff,
           dateOfJoining: selectedStaff.dateOfJoining ? format(parseISO(selectedStaff.dateOfJoining), 'yyyy-MM-dd') : '',
-          password: ""
+          password: "",
+          designationId: selectedStaff.designationId || "",
         });
       } else {
         const newStaffId = doc(collection(firestore!, `schools/${schoolId}/teachers`)).id;
@@ -154,6 +157,7 @@ export default function StaffManagementPage() {
           qualification: "",
           address: "",
           dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
+          designationId: "",
         });
       }
     }
@@ -263,6 +267,11 @@ export default function StaffManagementPage() {
     toast({ title: "Designation Created", description: `The designation "${values.name}" has been created.` });
     designationForm.reset();
   }
+
+  const getDesignationName = (designationId?: string) => {
+    if (!designationId || !designations) return "Not Assigned";
+    return designations.find(d => d.id === designationId)?.name || "Not Assigned";
+  };
 
   const roles = ['Primary', 'Middle School', 'High School'];
   const subjects = ['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies'];
@@ -416,12 +425,33 @@ export default function StaffManagementPage() {
                           </FormItem>
                         )}
                       />
+                       <FormField
+                        control={form.control}
+                        name="designationId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Designation</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger disabled={designationsLoading}>
+                                  <SelectValue placeholder={designationsLoading ? "Loading..." : "Select a designation"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">None</SelectItem>
+                                {designations?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                       <FormField
                         control={form.control}
                         name="role"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Role</FormLabel>
+                            <FormLabel>Role (for Teachers)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
@@ -441,7 +471,7 @@ export default function StaffManagementPage() {
                         name="subject"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Primary Subject</FormLabel>
+                            <FormLabel>Primary Subject (for Teachers)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger>
@@ -476,9 +506,9 @@ export default function StaffManagementPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Designation</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Subject</TableHead>
                 <TableHead>Date of Joining</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -504,9 +534,9 @@ export default function StaffManagementPage() {
               <TableRow key={staff.id}>
                 <TableCell className="font-medium">{staff.name}</TableCell>
                 <TableCell>{staff.email}</TableCell>
+                <TableCell>{getDesignationName(staff.designationId)}</TableCell>
                 <TableCell>{staff.contactNumber}</TableCell>
                 <TableCell>{staff.role}</TableCell>
-                <TableCell>{staff.subject}</TableCell>
                 <TableCell>{staff.dateOfJoining}</TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -549,6 +579,10 @@ export default function StaffManagementPage() {
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Full Name</span>
                 <span>{selectedStaff.name}</span>
+              </div>
+              <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Designation</span>
+                <span>{getDesignationName(selectedStaff.designationId)}</span>
               </div>
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Email</span>

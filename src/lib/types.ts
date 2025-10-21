@@ -44,6 +44,7 @@ export interface Teacher {
   subject: 'General' | 'English' | 'Urdu' | 'Math' | 'Science' | 'Social Studies';
   schoolId: string;
   uid?: string;
+  designationId?: string;
 }
 
 export interface ClassSection {
@@ -130,5 +131,3 @@ export interface Designation {
     
 
     
-
-```
