@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from "react"
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, doc, updateDoc } from "firebase/firestore"
+import { collection, query, doc, updateDoc, where } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,23 +27,22 @@ export default function ClassesPage() {
   }, [firestore, schoolId]);
   const { data: allClassSections } = useCollection<ClassSection>(classSectionsQuery);
 
-  // Fetch all students for the school
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/students`));
-  }, [firestore, schoolId]);
-  const { data: allStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
-
   const sectionsForSelectedClass = useMemo(() => {
     if (!selectedClass || !allClassSections) return [];
     return allClassSections.filter(section => section.className === selectedClass);
   }, [selectedClass, allClassSections]);
 
-  const studentsForSelectedClass = useMemo(() => {
-    if (!selectedClass || !allStudents) return [];
-    // Filter students whose admission class matches the selected class
-    return allStudents.filter(student => student.admissionClass === selectedClass);
-  }, [selectedClass, allStudents]);
+  const sectionIdsForSelectedClass = useMemo(() => {
+      return sectionsForSelectedClass.map(s => s.id);
+  }, [sectionsForSelectedClass]);
+
+  // Fetch all students for the school that are in one of the sections for the selected class
+  const studentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId || sectionIdsForSelectedClass.length === 0) return null;
+    return query(collection(firestore, `schools/${schoolId}/students`), where('classSectionId', 'in', sectionIdsForSelectedClass));
+  }, [firestore, schoolId, sectionIdsForSelectedClass]);
+  const { data: studentsForSelectedClass, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
+
 
   const handleStudentSectionChange = async (studentId: string, newSectionId: string) => {
     if (!firestore || !schoolId) return;
@@ -90,7 +89,7 @@ export default function ClassesPage() {
 
             {selectedClass && (
                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Students Admitted to Class {selectedClass}</h3>
+                    <h3 className="text-lg font-semibold mb-2">Students in Class {selectedClass}</h3>
                     <div className="rounded-md border">
                         <Table>
                             <TableHeader>
@@ -106,12 +105,12 @@ export default function ClassesPage() {
                                         <TableCell colSpan={3} className="text-center">Loading students...</TableCell>
                                     </TableRow>
                                 )}
-                                {!studentsLoading && studentsForSelectedClass.length === 0 && (
+                                {!studentsLoading && studentsForSelectedClass && studentsForSelectedClass.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={3} className="text-center">No students found for this class.</TableCell>
                                     </TableRow>
                                 )}
-                                {studentsForSelectedClass.map(student => (
+                                {studentsForSelectedClass && studentsForSelectedClass.map(student => (
                                     <TableRow key={student.id}>
                                         <TableCell>{student.fullName}</TableCell>
                                         <TableCell>{student.admissionNumber}</TableCell>
@@ -149,3 +148,5 @@ export default function ClassesPage() {
     </main>
   )
 }
+
+    

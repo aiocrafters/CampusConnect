@@ -44,7 +44,6 @@ import {
   SheetTitle,
   SheetFooter,
   SheetClose,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import {
   Dialog,
@@ -52,7 +51,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
@@ -65,14 +63,14 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, writeBatch } from "firebase/firestore"
+import { collection, query, doc } from "firebase/firestore"
 import type { Student, ClassSection } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { format } from 'date-fns';
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
@@ -104,7 +102,6 @@ export default function StudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(true); // Only edit mode is needed in this sheet now
   const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
   const [inactiveReason, setInactiveReason] = useState('');
 
@@ -120,7 +117,7 @@ export default function StudentsPage() {
   }, [firestore, schoolId]);
 
   const { data: students, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
-  const { data: classSections, isLoading: classSectionsLoading } = useCollection<ClassSection>(classSectionsQuery);
+  const { data: classSections } = useCollection<ClassSection>(classSectionsQuery);
 
 
   const getSectionDetails = (sectionId?: string) => {
@@ -156,7 +153,6 @@ export default function StudentsPage() {
   
 
   const handleEdit = (student: Student) => {
-    setIsEditMode(true);
     setSelectedStudent(student);
     setIsSheetOpen(true);
   };
@@ -239,12 +235,7 @@ export default function StudentsPage() {
                 Export
               </span>
             </Button>
-            <Button size="sm" className="h-8 gap-1" onClick={() => router.push('/dashboard/new-admission')}>
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Add Student
-              </span>
-            </Button>
+            
           </div>
         </div>
         <TabsContent value="all">
@@ -724,3 +715,5 @@ export default function StudentsPage() {
     </main>
   )
 }
+
+    
