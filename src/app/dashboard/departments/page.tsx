@@ -89,7 +89,7 @@ export default function DepartmentsPage() {
     setIsEditMode(false);
     setSelectedDepartment(null);
     setParentForNewSubDept(parent);
-    form.reset({ name: "", parentId: parent?.id || "" });
+    form.reset({ name: "", parentId: parent?.id || "none" });
     setIsSheetOpen(true);
   };
 
@@ -97,7 +97,7 @@ export default function DepartmentsPage() {
     setIsEditMode(true);
     setSelectedDepartment(department);
     setParentForNewSubDept(null);
-    form.reset({ id: department.id, name: department.name, parentId: department.parentId || "" });
+    form.reset({ id: department.id, name: department.name, parentId: department.parentId || "none" });
     setIsSheetOpen(true);
   };
 
@@ -111,7 +111,7 @@ export default function DepartmentsPage() {
     
     const dataToSave: Partial<Department> = {
         name: values.name,
-        parentId: values.parentId || undefined,
+        parentId: values.parentId === 'none' ? undefined : values.parentId,
     };
 
     if (isEditMode && selectedDepartment) {
@@ -125,7 +125,7 @@ export default function DepartmentsPage() {
         id: departmentId,
         schoolId,
         name: values.name,
-        parentId: values.parentId || undefined,
+        parentId: values.parentId === 'none' ? undefined : values.parentId,
       };
       setDocumentNonBlocking(departmentDocRef, newDept, { merge: false });
       toast({ title: "Department Added", description: "The new department has been added." });
@@ -259,14 +259,14 @@ export default function DepartmentsPage() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Parent Department</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value || 'none'}>
                                       <FormControl>
-                                        <SelectTrigger disabled={isEditMode && !!selectedDepartment?.parentId && selectedDepartment?.parentId !== ''}>
+                                        <SelectTrigger disabled={!!parentForNewSubDept}>
                                           <SelectValue placeholder="Select a parent department" />
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        <SelectItem value="">None (Top-Level Department)</SelectItem>
+                                        <SelectItem value="none">None (Top-Level Department)</SelectItem>
                                         {topLevelDepartments.filter(d => d.id !== selectedDepartment?.id).map(dept => (
                                           <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                                         ))}
