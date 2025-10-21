@@ -56,7 +56,7 @@ export default function AddStudentPage() {
   
   const recentStudentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(5));
+    return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(100));
   }, [firestore, schoolId]);
   const { data: recentStudents, isLoading: recentStudentsLoading } = useCollection<Student>(recentStudentsQuery);
 
@@ -402,8 +402,8 @@ export default function AddStudentPage() {
       
       <Card>
         <CardHeader>
-            <CardTitle>Recent Admissions</CardTitle>
-            <CardDescription>A list of the 5 most recently added students. Assign them to a section to finalize admission.</CardDescription>
+            <CardTitle>Students</CardTitle>
+            <CardDescription>A list of the 100 most recently added students. Assign them to a section.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
@@ -450,5 +450,3 @@ export default function AddStudentPage() {
     </main>
   )
 }
-
-    
