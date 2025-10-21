@@ -16,26 +16,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, limit, orderBy, where } from "firebase/firestore"
-import { Users, BookUser, School, ClipboardCheck, ClipboardList } from "lucide-react"
+import { Users, BookUser, School, ClipboardList } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import type { Student, Teacher, ClassSection, Exam } from "@/lib/types";
+import type { Student, Teacher, ClassSection, Exam, Subject } from "@/lib/types";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { format } from "date-fns"
 
 
 export default function Dashboard() {
   const { user, isUserLoading, firestore } = useFirebase();
-  const router = useRouter();
 
   const schoolId = user?.uid;
 
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [isExamDetailDialogOpen, setIsExamDetailDialogOpen] = useState(false);
 
+  // --- Data Fetching ---
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(5));
@@ -64,6 +74,11 @@ export default function Dashboard() {
       where("className", "==", selectedClass)
     );
   }, [firestore, schoolId, selectedYear, selectedClass]);
+  
+  const subjectsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId || !selectedExam) return null;
+    return query(collection(firestore, `schools/${schoolId}/exams/${selectedExam.id}/subjects`));
+  }, [firestore, schoolId, selectedExam]);
 
 
   const { data: recentStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
@@ -71,9 +86,7 @@ export default function Dashboard() {
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
   const { data: allClassSections, isLoading: classesLoading } = useCollection<ClassSection>(classesQuery);
   const { data: exams, isLoading: examsLoading } = useCollection<Exam>(examsQuery);
-  
-  // For now, pending queries are hardcoded as it requires more complex logic
-  const pendingQueries = 0;
+  const { data: subjects, isLoading: subjectsLoading } = useCollection<Subject>(subjectsQuery);
 
   const stats = [
     { title: "Total Students", value: allStudents?.length ?? 0, icon: Users, isLoading: allStudentsLoading },
@@ -89,6 +102,11 @@ export default function Dashboard() {
   
   const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
   const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+  
+  const handleViewExamDetails = (exam: Exam) => {
+    setSelectedExam(exam);
+    setIsExamDetailDialogOpen(true);
+  };
 
 
   if (isUserLoading) {
@@ -255,7 +273,7 @@ export default function Dashboard() {
                       <TableCell>{exam.className}</TableCell>
                       <TableCell>{exam.year}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/exams')}>
+                        <Button variant="outline" size="sm" onClick={() => handleViewExamDetails(exam)}>
                           View Details
                         </Button>
                       </TableCell>
@@ -267,8 +285,47 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+       <Dialog open={isExamDetailDialogOpen} onOpenChange={setIsExamDetailDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Exam Details: {selectedExam?.examName} ({selectedExam?.year})</DialogTitle>
+                <DialogDescription>
+                    Subjects and schedule for Class {selectedExam?.className}.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <Table>
+                  <TableHeader>
+                      <TableRow>
+                          <TableHead>Subject</TableHead>
+                          <TableHead>Teacher</TableHead>
+                          <TableHead>Max Marks</TableHead>
+                          <TableHead>Exam Date</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {subjectsLoading && <TableRow><TableCell colSpan={4} className="text-center">Loading subjects...</TableCell></TableRow>}
+                      {!subjectsLoading && subjects && subjects.length > 0 && subjects.map(subject => (
+                          <TableRow key={subject.id}>
+                              <TableCell>{subject.subjectName}</TableCell>
+                              <TableCell>{getTeacherName(subject.teacherId)}</TableCell>
+                              <TableCell>{subject.maxMarks}</TableCell>
+                              <TableCell>{format(new Date(subject.examDate), "PPP")}</TableCell>
+                          </TableRow>
+                      ))}
+                       {!subjectsLoading && (!subjects || subjects.length === 0) && (
+                          <TableRow><TableCell colSpan={4} className="text-center">No subjects found for this exam.</TableCell></TableRow>
+                       )}
+                  </TableBody>
+              </Table>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsExamDetailDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
-}
 
     
