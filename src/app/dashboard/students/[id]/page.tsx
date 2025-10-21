@@ -2,34 +2,71 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirebase, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirebase, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase";
 import { doc, collection, query, orderBy, where, getDoc, getDocs } from "firebase/firestore";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { Student, StudentTimelineEvent, Exam, Subject, PerformanceRecord } from "@/lib/types";
-import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap, ArrowRight, Edit, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+
 
 interface PerformanceDetails extends PerformanceRecord {
   subjectName: string;
   maxMarks: number;
 }
 
+const studentFormSchema = z.object({
+  id: z.string().min(1, "Student ID is required."),
+  admissionNumber: z.string().min(1, "Admission Number is required."),
+  admissionDate: z.string().min(1, "Admission Date is required."),
+  fullName: z.string().min(2, "Full name is required."),
+  pen: z.string().optional(),
+  dateOfBirth: z.string().min(1, "Date of birth is required."),
+  parentGuardianName: z.string().min(2, "Father's name is required."),
+  motherName: z.string().optional(),
+  address: z.string().min(5, "Address is required."),
+  aadhaarNumber: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  ifscCode: z.string().optional(),
+  admissionClass: z.string().min(1, "Admission Class is required"),
+  currentClass: z.string().min(1, "Current Class is required"),
+});
+
 
 export default function StudentDetailPage() {
     const { user, firestore } = useFirebase();
     const params = useParams();
     const studentId = params.id as string;
+    const { toast } = useToast();
     
     const [isExamDetailOpen, setIsExamDetailOpen] = useState(false);
     const [examDetails, setExamDetails] = useState<Exam | null>(null);
     const [performanceDetails, setPerformanceDetails] = useState<PerformanceDetails[] | null>(null);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+    
+    const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+    const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+    const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
+    const [inactiveReason, setInactiveReason] = useState('');
 
     const studentRef = useMemoFirebase(() => {
         if (!user || !firestore || !studentId) return null;
@@ -43,6 +80,52 @@ export default function StudentDetailPage() {
 
     const { data: student, isLoading: studentLoading } = useDoc<Student>(studentRef);
     const { data: timelineEvents, isLoading: timelineLoading } = useCollection<StudentTimelineEvent>(timelineQuery);
+
+    const form = useForm<z.infer<typeof studentFormSchema>>({
+        resolver: zodResolver(studentFormSchema),
+        defaultValues: {},
+    });
+
+    useEffect(() => {
+        if (isEditSheetOpen && student) {
+            form.reset({
+                ...student,
+                dateOfBirth: student.dateOfBirth ? format(new Date(student.dateOfBirth), 'yyyy-MM-dd') : '',
+                admissionDate: student.admissionDate ? format(new Date(student.admissionDate), 'yyyy-MM-dd') : '',
+            });
+        }
+    }, [isEditSheetOpen, student, form]);
+
+    useEffect(() => {
+        if (isStatusDialogOpen && student) {
+            setCurrentStatus(student.status);
+            setInactiveReason(student.inactiveReason || '');
+        }
+    }, [isStatusDialogOpen, student]);
+
+    async function onEditSubmit(values: z.infer<typeof studentFormSchema>) {
+        if (!studentRef) {
+          toast({ variant: "destructive", title: "Error", description: "Could not save student data." });
+          return;
+        }
+        updateDocumentNonBlocking(studentRef, values);
+        toast({ title: "Student Updated", description: `${values.fullName}'s information has been updated.` });
+        setIsEditSheetOpen(false);
+    }
+
+    async function handleSaveStatus() {
+        if (!studentRef || !student) {
+          toast({ variant: "destructive", title: "Error", description: "Could not save status." });
+          return;
+        }
+        const dataToUpdate: Partial<Student> = {
+          status: currentStatus,
+          inactiveReason: currentStatus === 'Inactive' ? inactiveReason : '',
+        };
+        updateDocumentNonBlocking(studentRef, dataToUpdate);
+        toast({ title: "Status Updated", description: `${student.fullName}'s status has been updated.`});
+        setIsStatusDialogOpen(false);
+    }
 
     const handleEventClick = async (event: StudentTimelineEvent) => {
         if (event.type !== 'EXAM_RESULT' || !event.details.examId || !firestore || !user) return;
@@ -114,6 +197,7 @@ export default function StudentDetailPage() {
         return ((marks / maxMarks) * 100).toFixed(2) + "%";
     };
 
+    const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
     const isLoading = studentLoading || timelineLoading;
 
     if (isLoading) {
@@ -142,12 +226,20 @@ export default function StudentDetailPage() {
             <div className="md:col-span-1 space-y-8">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                           <User className="w-6 h-6" /> {student.fullName}
-                        </CardTitle>
-                        <CardDescription>
-                            Admission No: {student.admissionNumber}
-                        </CardDescription>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">
+                                <User className="w-6 h-6" /> {student.fullName}
+                                </CardTitle>
+                                <CardDescription>
+                                    Admission No: {student.admissionNumber}
+                                </CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setIsEditSheetOpen(true)}><Edit className="mr-2 h-4 w-4"/>Edit</Button>
+                                <Button variant="outline" size="sm" onClick={() => setIsStatusDialogOpen(true)}><ShieldCheck className="mr-2 h-4 w-4"/>Status</Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <div className="flex items-start gap-3">
@@ -297,6 +389,107 @@ export default function StudentDetailPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+                <SheetContent className="sm:max-w-2xl">
+                    <SheetHeader>
+                        <SheetTitle>Edit Student Details</SheetTitle>
+                        <SheetDescription>Update {student?.fullName}'s information below.</SheetDescription>
+                    </SheetHeader>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onEditSubmit)}>
+                        <ScrollArea className="h-[calc(100vh-10rem)]">
+                            <div className="grid gap-4 py-4 px-4">
+                                <FormField name="id" render={({ field }) => (<FormItem><FormControl><Input type="hidden" {...field} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="admissionNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Admission Number</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="admissionDate" render={({ field }) => (
+                                    <FormItem><FormLabel>Admission Date</FormLabel><FormControl><Input type="date" {...field} disabled /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="fullName" render={({ field }) => (
+                                    <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} disabled /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="pen" render={({ field }) => (
+                                    <FormItem><FormLabel>Student PEN</FormLabel><FormControl><Input placeholder="Personal Education Number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
+                                    <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input type="date" {...field} disabled /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="parentGuardianName" render={({ field }) => (
+                                    <FormItem><FormLabel>Father's Full Name</FormLabel><FormControl><Input placeholder="Rakesh Sharma" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="motherName" render={({ field }) => (
+                                    <FormItem><FormLabel>Mother's Full Name</FormLabel><FormControl><Input placeholder="Sunita Sharma" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="address" render={({ field }) => (
+                                    <FormItem><FormLabel>Address</FormLabel><FormControl><Input placeholder="123, Main Street" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="aadhaarNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Aadhar Number</FormLabel><FormControl><Input placeholder="xxxx-xxxx-xxxx" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="bankAccountNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Bank Account Number</FormLabel><FormControl><Input placeholder="Bank Account Number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="bankName" render={({ field }) => (
+                                    <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="Bank Name" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="ifscCode" render={({ field }) => (
+                                    <FormItem><FormLabel>Bank IFSC Code</FormLabel><FormControl><Input placeholder="IFSC Code" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="admissionClass" render={({ field }) => (
+                                    <FormItem><FormLabel>Admission Class</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled>
+                                        <FormControl><SelectTrigger disabled><SelectValue /></SelectTrigger></FormControl>
+                                        <SelectContent>{classOptions.map((c) => (<SelectItem key={c} value={c}>Class {c}</SelectItem>))}</SelectContent>
+                                    </Select><FormDescription>Admission class cannot be changed.</FormDescription><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="currentClass" render={({ field }) => (
+                                    <FormItem><FormLabel>Current Class</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a current class" /></SelectTrigger></FormControl>
+                                        <SelectContent>{classOptions.map((c) => (<SelectItem key={c} value={c}>Class {c}</SelectItem>))}</SelectContent>
+                                    </Select><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                        </ScrollArea>
+                        <SheetFooter>
+                            <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
+                            <Button type="submit">Save Changes</Button>
+                        </SheetFooter>
+                        </form>
+                    </Form>
+                </SheetContent>
+            </Sheet>
+
+            <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Change Student Status</DialogTitle>
+                    <DialogDescription>Update the status for {student?.fullName}.</DialogDescription>
+                </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="status" className="text-right">Status</Label>
+                        <RadioGroup defaultValue={student?.status} onValueChange={(v: 'Active' | 'Inactive') => setCurrentStatus(v)} className="col-span-3 flex gap-4">
+                            <div className="flex items-center space-x-2"><RadioGroupItem value="Active" id="active" /><Label htmlFor="active">Active</Label></div>
+                            <div className="flex items-center space-x-2"><RadioGroupItem value="Inactive" id="inactive" /><Label htmlFor="inactive">Inactive</Label></div>
+                        </RadioGroup>
+                    </div>
+                    {currentStatus === 'Inactive' && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="reason" className="text-right">Reason</Label>
+                            <Textarea id="reason" value={inactiveReason} onChange={(e) => setInactiveReason(e.target.value)} className="col-span-3" placeholder="Enter reason for inactivation"/>
+                        </div>
+                    )}
+                    </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveStatus}>Save Changes</Button>
+                </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
