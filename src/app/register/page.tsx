@@ -114,7 +114,7 @@ export default function RegisterPage() {
             .catch(async (serverError) => {
                 const permissionError = new FirestorePermissionError({
                     path: `schools/${user.uid}`,
-                    operation: 'write',
+                    operation: 'create',
                     requestResourceData: schoolData
                 });
                 errorEmitter.emit('permission-error', permissionError);
@@ -220,5 +220,3 @@ export default function RegisterPage() {
         </div>
     );
 }
-
-    
