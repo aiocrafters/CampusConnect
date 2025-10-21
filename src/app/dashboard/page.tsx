@@ -146,25 +146,27 @@ export default function Dashboard() {
                         <TableRow>
                             <TableHead>Class</TableHead>
                             <TableHead>Section</TableHead>
+                            <TableHead>Section Name</TableHead>
                             <TableHead>Section Incharge</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {(classesLoading || teachersLoading) && Array.from({length: 5}).map((_, i) => (
                              <TableRow key={i}>
-                                <TableCell colSpan={3} className="text-center">Loading...</TableCell>
+                                <TableCell colSpan={4} className="text-center">Loading...</TableCell>
                             </TableRow>
                         ))}
                         {allClassSections && allClassSections.map((section) => (
                             <TableRow key={section.id}>
                                 <TableCell className="font-medium">{section.className}</TableCell>
                                 <TableCell>{section.sectionIdentifier}</TableCell>
+                                <TableCell>{section.sectionName || '-'}</TableCell>
                                 <TableCell>{getTeacherName(section.sectionInchargeId)}</TableCell>
                             </TableRow>
                         ))}
                          {allClassSections?.length === 0 && !classesLoading && (
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center">No sections found.</TableCell>
+                                <TableCell colSpan={4} className="text-center">No sections found.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
