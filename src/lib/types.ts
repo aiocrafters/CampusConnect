@@ -90,7 +90,7 @@ export interface StudentTimelineEvent {
     id: string;
     studentId: string;
     timestamp: string;
-    type: 'ADMISSION' | 'PROMOTION' | 'EXAM_RESULT';
+    type: 'ADMISSION' | 'PROMOTION' | 'EXAM_RESULT' | 'CLASS_ASSIGNMENT';
     description: string;
     details: {
         class?: string;

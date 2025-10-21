@@ -7,7 +7,7 @@ import { doc, collection, query, orderBy, where, getDoc, getDocs } from "firebas
 import { useParams } from "next/navigation";
 import { format } from "date-fns";
 import type { Student, StudentTimelineEvent, Exam, Subject, PerformanceRecord } from "@/lib/types";
-import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap } from "lucide-react";
+import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -102,6 +102,8 @@ export default function StudentDetailPage() {
                 return <GraduationCap className="w-5 h-5 text-green-500" />;
             case 'EXAM_RESULT':
                  return <ClipboardCheck className="w-5 h-5 text-blue-500" />;
+            case 'CLASS_ASSIGNMENT':
+                 return <ArrowRight className="w-5 h-5 text-indigo-500" />;
             default:
                 return <ScrollText className="w-5 h-5 text-primary" />;
         }
@@ -227,7 +229,7 @@ export default function StudentDetailPage() {
                                             </p>
                                         </div>
                                         <div className="flex-shrink-0 z-10">
-                                            <div className={`w-4 h-4 rounded-full mt-1 ${event.type === 'EXAM_RESULT' ? 'bg-blue-500' : 'bg-primary'}`}></div>
+                                            <div className={`w-4 h-4 rounded-full mt-1 ${event.type === 'EXAM_RESULT' ? 'bg-blue-500' : event.type === 'PROMOTION' ? 'bg-green-500' : event.type === 'CLASS_ASSIGNMENT' ? 'bg-indigo-500' : 'bg-primary'}`}></div>
                                         </div>
                                         <div className="ml-6 flex-1">
                                             <div className="flex items-center gap-2">

@@ -17,9 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useFirebase, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, doc, writeBatch, orderBy, limit } from "firebase/firestore"
-import type { Student, ClassSection } from "@/lib/types"
+import type { Student, ClassSection, StudentTimelineEvent } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -172,9 +172,27 @@ export default function AddStudentPage() {
           toast({ variant: "destructive", title: "Section Not Found", description: `Default section 'A' for class ${student.currentClass} does not exist. Please create it on the Sections page first.` });
           return;
       }
+      
+      const batch = writeBatch(firestore);
 
       const studentDocRef = doc(firestore, `schools/${schoolId}/students`, student.id);
-      updateDocumentNonBlocking(studentDocRef, { classSectionId: targetSection.id });
+      batch.update(studentDocRef, { classSectionId: targetSection.id });
+
+      const timelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${student.id}/timeline`));
+      const timelineEvent: Omit<StudentTimelineEvent, 'id'> = {
+          studentId: student.id,
+          timestamp: new Date().toISOString(),
+          type: 'CLASS_ASSIGNMENT',
+          description: `Assigned to Class ${targetSection.className} - Section ${targetSection.sectionIdentifier}`,
+          details: { 
+              class: targetSection.className, 
+              section: targetSection.sectionIdentifier,
+              academicYear: new Date().getFullYear().toString() 
+          }
+      };
+      batch.set(timelineEventRef, timelineEvent);
+      
+      await batch.commit();
 
       toast({
           title: "Student Assigned",
