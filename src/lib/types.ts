@@ -66,6 +66,7 @@ export interface Exam {
   schoolId: string;
   examName: string;
   className: string;
+  year: number;
 }
 
 export interface Subject {
@@ -105,6 +106,8 @@ export interface Promotion {
     studentIds: string[];
     promotionDate: string;
 }
+    
+
     
 
     

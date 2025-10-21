@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils"
 // Zod schemas
 const examFormSchema = z.object({
   examName: z.string().min(3, "Exam name is required."),
+  year: z.coerce.number().min(new Date().getFullYear() - 5).max(new Date().getFullYear() + 5),
 });
 
 const subjectFormSchema = z.object({
@@ -73,7 +74,7 @@ export default function ExamsPage() {
   // Form hooks
   const examForm = useForm<z.infer<typeof examFormSchema>>({
     resolver: zodResolver(examFormSchema),
-    defaultValues: { examName: "" },
+    defaultValues: { examName: "", year: new Date().getFullYear() },
   });
 
   const subjectForm = useForm<z.infer<typeof subjectFormSchema>>({
@@ -107,7 +108,7 @@ export default function ExamsPage() {
   // Handlers
   const handleOpenExamSheet = (exam: Exam | null) => {
     setSelectedExam(exam);
-    examForm.reset({ examName: exam?.examName || "" });
+    examForm.reset({ examName: exam?.examName || "", year: exam?.year || new Date().getFullYear() });
     setIsExamSheetOpen(true);
   };
   
@@ -239,7 +240,7 @@ export default function ExamsPage() {
                     <AccordionItem value={exam.id} key={exam.id}>
                       <div className="flex items-center w-full">
                         <AccordionTrigger>
-                          <span className="text-lg font-medium">{exam.examName}</span>
+                          <span className="text-lg font-medium">{exam.examName} - {exam.year}</span>
                         </AccordionTrigger>
                         <div className="ml-auto pr-4 flex items-center gap-2">
                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleOpenExamSheet(exam); }}><Edit className="h-4 w-4 mr-2" /> Edit</Button>
@@ -316,6 +317,19 @@ export default function ExamsPage() {
                                     <FormLabel>Exam Name</FormLabel>
                                     <FormControl>
                                         <Input placeholder="e.g., Midterm, Final, Unit Test 1" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={examForm.control}
+                            name="year"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Year</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder={`e.g., ${new Date().getFullYear()}`} {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

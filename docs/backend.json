@@ -263,13 +263,18 @@
         "className": {
           "type": "string",
           "description": "The class for which the exam is conducted."
+        },
+        "year": {
+          "type": "number",
+          "description": "The academic year of the exam."
         }
       },
       "required": [
         "id",
         "schoolId",
         "examName",
-        "className"
+        "className",
+        "year"
       ]
     },
     "Subject": {
