@@ -1,9 +1,10 @@
 
+
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc } from "firebase/firestore"
+import { collection, query, doc, writeBatch } from "firebase/firestore"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -11,7 +12,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useToast } from "@/hooks/use-toast"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -36,12 +36,64 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { Department } from "@/lib/types"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 
 const departmentFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Department name must be at least 2 characters."),
   parentId: z.string().optional(),
+  type: z.enum(["Academic", "Non-Academic"], { required_error: "Department type is required."}),
+  isDefault: z.boolean().optional(),
 });
+
+const defaultDepartments: Omit<Department, 'id' | 'schoolId'>[] = [
+    // Academic
+    { name: 'Academic Departments', type: 'Academic', isDefault: true },
+    { name: 'English', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'Mathematics', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'Science', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'Social Studies', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'ICT', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'Arts', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'Physical Education', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    { name: 'Business', type: 'Academic', parentId: 'academic_root', isDefault: true },
+    
+    // Non-Academic
+    { name: 'Administrative Departments', type: 'Non-Academic', isDefault: true },
+    { name: 'Principal’s Office', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
+    { name: 'Vice Principal’s Office', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
+    { name: 'Finance', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
+    { name: 'Human Resources', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
+    { name: 'Records & Examinations', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
+    { name: 'Administration Office', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
+
+    { name: 'Student Support Departments', type: 'Non-Academic', isDefault: true },
+    { name: 'Guidance & Counseling', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
+    { name: 'Health Services', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
+    { name: 'Library', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
+    { name: 'Special Education', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
+    { name: 'Student Affairs', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
+
+    { name: 'Operational & Maintenance Departments', type: 'Non-Academic', isDefault: true },
+    { name: 'Facilities & Maintenance', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
+    { name: 'Security', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
+    { name: 'Transport', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
+    { name: 'Cafeteria', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
+    { name: 'Cleaning & Sanitation', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
+
+    { name: 'ICT & Innovation Departments', type: 'Non-Academic', isDefault: true },
+    { name: 'Computer Science', type: 'Non-Academic', parentId: 'ict_root', isDefault: true },
+    { name: 'Educational Technology', type: 'Non-Academic', parentId: 'ict_root', isDefault: true },
+    { name: 'IT Support', type: 'Non-Academic', parentId: 'ict_root', isDefault: true },
+];
+
+const rootMapping: { [key: string]: string } = {
+    'academic_root': 'Academic Departments',
+    'administrative_root': 'Administrative Departments',
+    'student_support_root': 'Student Support Departments',
+    'operational_root': 'Operational & Maintenance Departments',
+    'ict_root': 'ICT & Innovation Departments',
+};
 
 export default function DepartmentsPage() {
   const { user, firestore } = useFirebase();
@@ -53,6 +105,7 @@ export default function DepartmentsPage() {
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [parentForNewSubDept, setParentForNewSubDept] = useState<Department | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Data fetching
   const departmentsQuery = useMemoFirebase(() => {
@@ -61,14 +114,59 @@ export default function DepartmentsPage() {
   }, [firestore, schoolId]);
   const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
 
+  useEffect(() => {
+    if (departmentsLoading) return;
+    
+    setIsInitializing(false);
+
+    if (departments?.length === 0 && firestore && schoolId) {
+      const initializeDepartments = async () => {
+        setIsInitializing(true);
+        const batch = writeBatch(firestore);
+        
+        const rootDeptIds: { [key: string]: string } = {};
+
+        // First pass: create root departments and get their IDs
+        defaultDepartments.forEach(dept => {
+            if (!dept.parentId) {
+                const deptId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
+                rootDeptIds[dept.name] = deptId;
+                batch.set(doc(firestore, `schools/${schoolId}/departments`, deptId), { ...dept, id: deptId, schoolId });
+            }
+        });
+
+        // Second pass: create sub-departments with correct parentId
+        defaultDepartments.forEach(dept => {
+            if (dept.parentId) {
+                const parentName = rootMapping[dept.parentId];
+                const parentId = rootDeptIds[parentName];
+                if (parentId) {
+                    const deptId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
+                    batch.set(doc(firestore, `schools/${schoolId}/departments`, deptId), { ...dept, id: deptId, schoolId, parentId });
+                }
+            }
+        });
+        
+        await batch.commit();
+        toast({
+          title: "Departments Initialized",
+          description: "Default departments have been added to your school.",
+        });
+        // Data will be re-fetched by useCollection, no need to setIsInitializing(false) here as re-render will handle it
+      };
+      initializeDepartments();
+    }
+  }, [departmentsLoading, departments, firestore, schoolId, toast]);
+
   const form = useForm<z.infer<typeof departmentFormSchema>>({
     resolver: zodResolver(departmentFormSchema),
-    defaultValues: { name: "", parentId: "" },
+    defaultValues: { name: "", parentId: "none", type: "Academic" },
   });
 
-  const { topLevelDepartments, subDepartmentsMap } = useMemo(() => {
-    if (!departments) return { topLevelDepartments: [], subDepartmentsMap: new Map() };
-    const topLevel: Department[] = [];
+  const { academicDepartments, nonAcademicDepartments, subDepartmentsMap } = useMemo(() => {
+    if (!departments) return { academicDepartments: [], nonAcademicDepartments: [], subDepartmentsMap: new Map() };
+    const academic: Department[] = [];
+    const nonAcademic: Department[] = [];
     const subMap = new Map<string, Department[]>();
 
     departments.forEach(dept => {
@@ -77,11 +175,15 @@ export default function DepartmentsPage() {
         children.push(dept);
         subMap.set(dept.parentId, children);
       } else {
-        topLevel.push(dept);
+        if (dept.type === 'Academic') {
+          academic.push(dept);
+        } else {
+          nonAcademic.push(dept);
+        }
       }
     });
 
-    return { topLevelDepartments: topLevel, subDepartmentsMap: subMap };
+    return { academicDepartments: academic, nonAcademicDepartments: nonAcademic, subDepartmentsMap: subMap };
   }, [departments]);
 
 
@@ -89,7 +191,7 @@ export default function DepartmentsPage() {
     setIsEditMode(false);
     setSelectedDepartment(null);
     setParentForNewSubDept(parent);
-    form.reset({ name: "", parentId: parent?.id || "none" });
+    form.reset({ name: "", parentId: parent?.id || "none", type: parent?.type || 'Academic' });
     setIsSheetOpen(true);
   };
 
@@ -97,7 +199,7 @@ export default function DepartmentsPage() {
     setIsEditMode(true);
     setSelectedDepartment(department);
     setParentForNewSubDept(null);
-    form.reset({ id: department.id, name: department.name, parentId: department.parentId || "none" });
+    form.reset({ id: department.id, name: department.name, parentId: department.parentId || "none", type: department.type || 'Academic' });
     setIsSheetOpen(true);
   };
 
@@ -109,9 +211,11 @@ export default function DepartmentsPage() {
   const onDepartmentSubmit = (values: z.infer<typeof departmentFormSchema>) => {
     if (!firestore || !schoolId) return;
     
-    const dataToSave: Partial<Department> = {
+    const dataToSave: Partial<Omit<Department, 'id' | 'schoolId'>> = {
         name: values.name,
         parentId: values.parentId === 'none' ? undefined : values.parentId,
+        type: values.type,
+        isDefault: values.isDefault || false,
     };
 
     if (isEditMode && selectedDepartment) {
@@ -126,6 +230,8 @@ export default function DepartmentsPage() {
         schoolId,
         name: values.name,
         parentId: values.parentId === 'none' ? undefined : values.parentId,
+        type: values.type,
+        isDefault: false
       };
       setDocumentNonBlocking(departmentDocRef, newDept, { merge: false });
       toast({ title: "Department Added", description: "The new department has been added." });
@@ -137,12 +243,17 @@ export default function DepartmentsPage() {
   const confirmDelete = () => {
     if (!firestore || !schoolId || !selectedDepartment) return;
 
-    // Also delete sub-departments
     const subDepts = subDepartmentsMap.get(selectedDepartment.id) || [];
     if (subDepts.length > 0) {
         toast({ variant: "destructive", title: "Deletion Failed", description: "Cannot delete a department that has sub-departments. Please delete them first."});
         setIsDeleteDialogOpen(false);
         return;
+    }
+    
+    if (selectedDepartment.isDefault) {
+      toast({ variant: "destructive", title: "Deletion Failed", description: "Cannot delete a default department."});
+      setIsDeleteDialogOpen(false);
+      return;
     }
 
     const departmentDocRef = doc(firestore, `schools/${schoolId}/departments`, selectedDepartment.id);
@@ -152,7 +263,65 @@ export default function DepartmentsPage() {
     setSelectedDepartment(null);
   };
 
-  const isLoading = departmentsLoading;
+  const renderDepartmentAccordion = (depts: Department[], title: string) => (
+    <div className="mb-8">
+        <h2 className="text-xl font-bold mb-2">{title}</h2>
+        {depts.length > 0 ? (
+            <Accordion type="multiple" className="w-full">
+            {depts.map(dept => {
+                    const children = subDepartmentsMap.get(dept.id) || [];
+                    return (
+                    <AccordionItem value={dept.id} key={dept.id}>
+                        <div className="flex items-center w-full border-b">
+                            <AccordionTrigger className="flex-1 text-lg font-medium pr-2">
+                                {dept.name}
+                            </AccordionTrigger>
+                            <div className="ml-auto pr-4 flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => handleAdd(dept)}>
+                                    <PlusCircle className="h-4 w-4 mr-2" /> Add Sub-dept
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(dept)}><Edit className="h-4 w-4" /></Button>
+                                {!dept.isDefault && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(dept)}><Trash2 className="h-4 w-4" /></Button>}
+                            </div>
+                        </div>
+                        <AccordionContent>
+                            {children.length > 0 ? (
+                                <div className="pl-6 pt-2">
+                                    <Table>
+                                            <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Sub-Department / Office</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                        {children.map(child => (
+                                            <TableRow key={child.id}>
+                                                <TableCell className="font-medium">{child.name}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(child)}><Edit className="h-4 w-4" /></Button>
+                                                    {!child.isDefault && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(child)}><Trash2 className="h-4 w-4" /></Button>}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground text-sm p-4 text-center">No sub-departments found.</p>
+                            )}
+                        </AccordionContent>
+                    </AccordionItem>
+                    )
+            })}
+        </Accordion>
+        ) : (
+            <p className="text-center text-muted-foreground py-4">No {title.toLowerCase()} found.</p>
+        )}
+    </div>
+  );
+
+  const isLoading = departmentsLoading || isInitializing;
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -161,7 +330,7 @@ export default function DepartmentsPage() {
           <div>
             <CardTitle>Departments & Offices</CardTitle>
             <CardDescription>
-              Manage departments and their sub-departments or offices.
+              Manage academic and non-academic departments and their sub-departments.
             </CardDescription>
           </div>
           <Button size="sm" className="h-8 gap-1" onClick={() => handleAdd(null)}>
@@ -172,61 +341,18 @@ export default function DepartmentsPage() {
           </Button>
         </CardHeader>
         <CardContent>
-            {isLoading && <p className="text-center">Loading departments...</p>}
+            {isLoading && <p className="text-center py-8">Loading departments...</p>}
             {!isLoading && departments?.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
                     No departments found. Add one to get started.
                 </div>
             )}
-            {!isLoading && topLevelDepartments.length > 0 && (
-                 <Accordion type="multiple" className="w-full">
-                    {topLevelDepartments.map(dept => {
-                         const children = subDepartmentsMap.get(dept.id) || [];
-                         return (
-                            <AccordionItem value={dept.id} key={dept.id}>
-                                <div className="flex items-center w-full border-b">
-                                    <AccordionTrigger className="flex-1 text-lg font-medium pr-2">
-                                        {dept.name}
-                                    </AccordionTrigger>
-                                    <div className="ml-auto pr-4 flex items-center gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => handleAdd(dept)}>
-                                            <PlusCircle className="h-4 w-4 mr-2" /> Add Sub-dept
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(dept)}><Edit className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(dept)}><Trash2 className="h-4 w-4" /></Button>
-                                    </div>
-                                </div>
-                                <AccordionContent>
-                                    {children.length > 0 ? (
-                                        <div className="pl-6 pt-2">
-                                            <Table>
-                                                 <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Sub-Department / Office</TableHead>
-                                                        <TableHead className="text-right">Actions</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                {children.map(child => (
-                                                    <TableRow key={child.id}>
-                                                        <TableCell className="font-medium">{child.name}</TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(child)}><Edit className="h-4 w-4" /></Button>
-                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(child)}><Trash2 className="h-4 w-4" /></Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    ) : (
-                                        <p className="text-muted-foreground text-sm p-4 text-center">No sub-departments found.</p>
-                                    )}
-                                </AccordionContent>
-                            </AccordionItem>
-                         )
-                    })}
-                </Accordion>
+            {!isLoading && departments && departments.length > 0 && (
+                <>
+                  {renderDepartmentAccordion(academicDepartments, "Academic Departments")}
+                  <Separator className="my-6" />
+                  {renderDepartmentAccordion(nonAcademicDepartments, "Non-Academic Departments")}
+                </>
             )}
         </CardContent>
       </Card>
@@ -244,16 +370,26 @@ export default function DepartmentsPage() {
                     <div className="grid gap-4 py-4">
                         <FormField
                             control={form.control}
-                            name="name"
+                            name="type"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Department Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Academics, HR Office" {...field} /></FormControl>
+                                    <FormLabel>Department Type</FormLabel>
+                                     <Select onValueChange={field.onChange} value={field.value} disabled={!!parentForNewSubDept}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select a department type" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="Academic">Academic</SelectItem>
+                                        <SelectItem value="Non-Academic">Non-Academic</SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        <FormField
+                         <FormField
                             control={form.control}
                             name="parentId"
                             render={({ field }) => (
@@ -267,11 +403,24 @@ export default function DepartmentsPage() {
                                       </FormControl>
                                       <SelectContent>
                                         <SelectItem value="none">None (Top-Level Department)</SelectItem>
-                                        {topLevelDepartments.filter(d => d.id !== selectedDepartment?.id).map(dept => (
-                                          <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                                        {[...academicDepartments, ...nonAcademicDepartments]
+                                          .filter(d => d.id !== selectedDepartment?.id)
+                                          .map(dept => (
+                                            <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Department Name</FormLabel>
+                                    <FormControl><Input placeholder="e.g., Academics, HR Office" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -292,7 +441,7 @@ export default function DepartmentsPage() {
                 <DialogTitle>Are you sure?</DialogTitle>
                 <DialogDescription>
                     This will permanently delete the department "{selectedDepartment?.name}". This action cannot be undone. 
-                    You cannot delete a department that has sub-departments.
+                    You cannot delete a department that has sub-departments or is a default department.
                 </DialogDescription>
             </DialogHeader>
             <DialogFooter>

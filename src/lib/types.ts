@@ -132,6 +132,8 @@ export interface Department {
   schoolId: string;
   name: string;
   parentId?: string;
+  isDefault?: boolean;
+  type?: 'Academic' | 'Non-Academic';
 }
     
 
