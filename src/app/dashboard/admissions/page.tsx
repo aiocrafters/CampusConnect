@@ -20,7 +20,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { UserNav } from "./user-nav"
+import { UserNav } from "@/app/dashboard/components/user-nav"
 import { cn } from "@/lib/utils"
 
 const navItems = [
