@@ -26,6 +26,8 @@ const marksSchema = z.object({
   ),
 });
 
+type MarksFormData = z.infer<typeof marksSchema>;
+
 export default function AwardSheetPage() {
   const { user, firestore } = useFirebase();
   const schoolId = user?.uid;
@@ -66,7 +68,7 @@ export default function AwardSheetPage() {
   const { data: students } = useCollection<Student>(studentsQuery);
 
 
-  const form = useForm<z.infer<typeof marksSchema>>({
+  const form = useForm<MarksFormData>({
     resolver: zodResolver(marksSchema),
     defaultValues: { marks: [] },
   });
@@ -108,41 +110,39 @@ export default function AwardSheetPage() {
   }, [students, selectedSubject, replace, firestore, schoolId]);
 
 
-  const onSubmit = (data: z.infer<typeof marksSchema>) => {
+  const handleSaveMarks = (studentIndex: number) => {
     if (!firestore || !schoolId || !selectedSubject) {
       toast({ variant: 'destructive', title: 'Error', description: 'Cannot save marks.' });
       return;
     }
 
-    let recordsSaved = 0;
-    data.marks.forEach((markEntry) => {
-        if (markEntry.marks !== undefined && markEntry.marks !== null) {
-            const recordId = `${markEntry.studentId}_${selectedSubject.id}_${selectedSubject.examId}`;
-            const recordRef = doc(firestore, `schools/${schoolId}/performanceRecords`, recordId);
-            
-            const performanceRecord: PerformanceRecord = {
-                id: recordId,
-                studentId: markEntry.studentId,
-                subjectId: selectedSubject.id,
-                schoolId: schoolId,
-                examId: selectedSubject.examId,
-                marks: markEntry.marks,
-                remarks: '', // remarks can be added later
-            };
-            setDocumentNonBlocking(recordRef, performanceRecord, { merge: true });
-            recordsSaved++;
-        }
-    });
-    
-    if (recordsSaved > 0) {
+    const markEntry = form.getValues(`marks.${studentIndex}`);
+    const student = students?.find(s => s.id === markEntry.studentId);
+
+    if (markEntry.marks !== undefined && markEntry.marks !== null) {
+        const recordId = `${markEntry.studentId}_${selectedSubject.id}_${selectedSubject.examId}`;
+        const recordRef = doc(firestore, `schools/${schoolId}/performanceRecords`, recordId);
+        
+        const performanceRecord: PerformanceRecord = {
+            id: recordId,
+            studentId: markEntry.studentId,
+            subjectId: selectedSubject.id,
+            schoolId: schoolId,
+            examId: selectedSubject.examId,
+            marks: markEntry.marks,
+            remarks: '', // remarks can be added later
+        };
+        setDocumentNonBlocking(recordRef, performanceRecord, { merge: true });
+        
         toast({
             title: 'Marks Saved!',
-            description: `Successfully saved marks for ${recordsSaved} students.`,
+            description: `Successfully saved marks for ${student?.fullName}.`,
         });
     } else {
         toast({
+            variant: "destructive",
             title: 'No Marks to Save',
-            description: 'No new marks were entered.',
+            description: 'Please enter marks before saving.',
         });
     }
   };
@@ -200,7 +200,7 @@ export default function AwardSheetPage() {
           
           {selectedSubject && students && (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)}>
+              <form>
                 <div className="rounded-md border">
                     <Table>
                         <TableHeader>
@@ -209,12 +209,13 @@ export default function AwardSheetPage() {
                                 <TableHead>Student Name</TableHead>
                                 <TableHead className="w-[180px]">Maximum Marks</TableHead>
                                 <TableHead className="w-[180px]">Marks Obtained</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center">Loading student marks...</TableCell>
+                                    <TableCell colSpan={5} className="text-center">Loading student marks...</TableCell>
                                 </TableRow>
                             )}
                             {!isLoading && fields.map((field, index) => {
@@ -245,17 +246,17 @@ export default function AwardSheetPage() {
                                                 )}
                                             />
                                         </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button type="button" size="sm" onClick={() => handleSaveMarks(index)}>
+                                                <Save className="mr-2 h-4 w-4"/>
+                                                Save
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 );
                             })}
                         </TableBody>
                     </Table>
-                </div>
-                 <div className="flex justify-end mt-6">
-                    <Button type="submit">
-                        <Save className="mr-2 h-4 w-4"/>
-                        Save Marks
-                    </Button>
                 </div>
               </form>
             </Form>
