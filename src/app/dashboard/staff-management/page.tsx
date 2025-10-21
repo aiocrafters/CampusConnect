@@ -197,6 +197,7 @@ export default function StaffManagementPage() {
     const dataToSave = {
         ...staffData,
         schoolId,
+        designationId: values.designationId === 'none' ? '' : values.designationId,
     };
     
     if (isEditMode) {
@@ -431,14 +432,14 @@ export default function StaffManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Designation</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value || 'none'}>
                               <FormControl>
                                 <SelectTrigger disabled={designationsLoading}>
                                   <SelectValue placeholder={designationsLoading ? "Loading..." : "Select a designation"} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">None</SelectItem>
+                                <SelectItem value="none">None</SelectItem>
                                 {designations?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                               </SelectContent>
                             </Select>
@@ -689,3 +690,5 @@ export default function StaffManagementPage() {
     </main>
   )
 }
+
+    
