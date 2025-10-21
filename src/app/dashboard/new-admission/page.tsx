@@ -18,9 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
+import { useFirebase, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, writeBatch, orderBy, limit } from "firebase/firestore"
-import type { Student } from "@/lib/types"
+import type { Student, ClassSection } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -30,6 +30,7 @@ import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Send } from "lucide-react"
 
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
@@ -65,6 +66,12 @@ export default function NewAdmissionPage() {
     return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(5));
   }, [firestore, schoolId]);
   const { data: recentStudents, isLoading: recentStudentsLoading } = useCollection<Student>(recentStudentsQuery);
+
+  const classSectionsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/classSections`));
+  }, [firestore, schoolId]);
+  const { data: classSections } = useCollection<ClassSection>(classSectionsQuery);
 
 
   const nextAdmissionNumber = useMemo(() => {
@@ -155,7 +162,7 @@ export default function NewAdmissionPage() {
 
     toast({
       title: "Student Added",
-      description: `${values.fullName} has been added. Assign a section in the Classes page.`,
+      description: `${values.fullName} has been added. You can now send them to their class section below.`,
     });
 
     form.reset();
@@ -179,6 +186,28 @@ export default function NewAdmissionPage() {
         });
     }
   }
+
+  const handleAssignToSection = async (student: Student) => {
+      if (!firestore || !schoolId || !classSections) {
+          toast({ variant: "destructive", title: "Error", description: "Cannot assign section right now." });
+          return;
+      }
+      
+      const targetSection = classSections.find(s => s.className === student.admissionClass && s.sectionIdentifier === 'A');
+
+      if (!targetSection) {
+          toast({ variant: "destructive", title: "Section Not Found", description: `Default section 'A' for class ${student.admissionClass} does not exist. Please create it on the Sections page first.` });
+          return;
+      }
+
+      const studentDocRef = doc(firestore, `schools/${schoolId}/students`, student.id);
+      updateDocumentNonBlocking(studentDocRef, { classSectionId: targetSection.id });
+
+      toast({
+          title: "Student Assigned",
+          description: `${student.fullName} has been assigned to Class ${student.admissionClass} - Section A.`,
+      });
+  };
   
   const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
@@ -412,16 +441,16 @@ export default function NewAdmissionPage() {
       <Card>
         <CardHeader>
             <CardTitle>Recent Admissions</CardTitle>
-            <CardDescription>A list of the 5 most recently added students.</CardDescription>
+            <CardDescription>A list of the 5 most recently added students. Assign them to a section to finalize admission.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>ID</TableHead>
                         <TableHead>Admission No.</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Admission Class</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -432,10 +461,19 @@ export default function NewAdmissionPage() {
                     ))}
                     {recentStudents && recentStudents.map((student) => (
                         <TableRow key={student.id}>
-                            <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
                             <TableCell>{student.admissionNumber}</TableCell>
                             <TableCell>{student.fullName}</TableCell>
                             <TableCell>{student.admissionClass}</TableCell>
+                            <TableCell className="text-right">
+                                {!student.classSectionId ? (
+                                     <Button size="sm" onClick={() => handleAssignToSection(student)}>
+                                        <Send className="mr-2 h-4 w-4" />
+                                        Send to Class
+                                    </Button>
+                                ) : (
+                                    <span className="text-sm text-green-600 font-semibold">Assigned</span>
+                                )}
+                            </TableCell>
                         </TableRow>
                     ))}
                      {recentStudents?.length === 0 && !recentStudentsLoading && (
@@ -450,5 +488,6 @@ export default function NewAdmissionPage() {
     </main>
   )
 }
+
 
     
