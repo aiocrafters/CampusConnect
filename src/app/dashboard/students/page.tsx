@@ -104,7 +104,7 @@ export default function StudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(true); // Only edit mode is needed in this sheet now
   const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
   const [inactiveReason, setInactiveReason] = useState('');
 
@@ -132,65 +132,20 @@ export default function StudentsPage() {
   };
 
 
-  const nextAdmissionNumber = useMemo(() => {
-    if (!students || students.length === 0) {
-      return null; // Indicates manual input is needed for the first student
-    }
-    const maxAdmissionNumber = Math.max(...students.map(s => parseInt(s.admissionNumber, 10)).filter(n => !isNaN(n)));
-    return isFinite(maxAdmissionNumber) ? (maxAdmissionNumber + 1).toString() : null;
-  }, [students]);
-
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
-    defaultValues: {
-      id: "",
-      admissionNumber: "",
-      admissionDate: format(new Date(), 'yyyy-MM-dd'),
-      fullName: "",
-      pen: "",
-      dateOfBirth: "",
-      parentGuardianName: "",
-      motherName: "",
-      address: "",
-      aadhaarNumber: "",
-      bankAccountNumber: "",
-      bankName: "",
-      ifscCode: "",
-      admissionClass: "",
-    },
+    defaultValues: {},
   });
 
   useEffect(() => {
-    if (isSheetOpen) {
-      if (isEditMode && selectedStudent) {
-        // Populate form for editing
+    if (isSheetOpen && selectedStudent) {
         form.reset({
           ...selectedStudent,
           dateOfBirth: selectedStudent.dateOfBirth ? format(new Date(selectedStudent.dateOfBirth), 'yyyy-MM-dd') : '',
           admissionDate: selectedStudent.admissionDate ? format(new Date(selectedStudent.admissionDate), 'yyyy-MM-dd') : '',
         });
-      } else {
-        // Reset form for adding a new student
-        const newStudentId = doc(collection(firestore!, `schools/${schoolId}/students`)).id;
-        form.reset({
-          id: newStudentId,
-          admissionNumber: nextAdmissionNumber || "",
-          admissionDate: format(new Date(), 'yyyy-MM-dd'),
-          fullName: "",
-          pen: "",
-          dateOfBirth: "",
-          parentGuardianName: "",
-          motherName: "",
-          address: "",
-          aadhaarNumber: "",
-          bankAccountNumber: "",
-          bankName: "",
-          ifscCode: "",
-          admissionClass: "",
-        });
-      }
     }
-  }, [isSheetOpen, isEditMode, selectedStudent, form, firestore, schoolId, nextAdmissionNumber]);
+  }, [isSheetOpen, selectedStudent, form]);
 
   useEffect(() => {
     if (isStatusDialogOpen && selectedStudent) {
@@ -199,11 +154,6 @@ export default function StudentsPage() {
     }
   }, [isStatusDialogOpen, selectedStudent]);
   
-  const handleAddNew = () => {
-    setIsEditMode(false);
-    setSelectedStudent(null);
-    setIsSheetOpen(true);
-  };
 
   const handleEdit = (student: Student) => {
     setIsEditMode(true);
@@ -235,52 +185,20 @@ export default function StudentsPage() {
       return;
     }
     
-    const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
     
-    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason' | 'classSectionId'> & { schoolId: string } = {
+    const dataToSave: Partial<Student> = {
         ...values,
-        schoolId,
     };
     
-    if (isEditMode) {
-      // Update existing document
-      batch.update(studentDocRef, dataToSave);
-      toast({
-        title: "Student Updated",
-        description: `${values.fullName}'s information has been updated.`,
-      });
-    } else {
-      // Create new document
-      const dataWithStatus: Student = {
-        ...dataToSave,
-        status: 'Active' as const,
-        classSectionId: '', // Initially empty, assigned in classes page
-      };
-      batch.set(studentDocRef, dataWithStatus);
-
-      // Create initial timeline event for admission
-      const timelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
-      batch.set(timelineEventRef, {
-          id: timelineEventRef.id,
-          studentId: values.id,
-          timestamp: new Date().toISOString(),
-          type: 'ADMISSION',
-          description: `Admitted to Class ${values.admissionClass}`,
-          details: { class: values.admissionClass, academicYear: new Date().getFullYear().toString() }
-      });
-
-      toast({
-        title: "Student Added",
-        description: `${values.fullName} has been added. Assign a section in the Classes page.`,
-      });
-    }
-
-    await batch.commit();
+    updateDocumentNonBlocking(studentDocRef, dataToSave);
+    toast({
+      title: "Student Updated",
+      description: `${values.fullName}'s information has been updated.`,
+    });
 
     form.reset();
     setIsSheetOpen(false);
-    setIsEditMode(false);
     setSelectedStudent(null);
   }
 
@@ -321,241 +239,12 @@ export default function StudentsPage() {
                 Export
               </span>
             </Button>
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                <Button size="sm" className="h-8 gap-1" onClick={handleAddNew}>
-                  <PlusCircle className="h-3.5 w-3.5" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Student
-                  </span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="sm:max-w-2xl">
-                <SheetHeader>
-                  <SheetTitle>{isEditMode ? 'Edit Student Details' : 'Add a New Student'}</SheetTitle>
-                  <SheetDescription>
-                   {isEditMode ? "Update the student's information below." : 'Fill in the details below to add a new student to the system.'}
-                  </SheetDescription>
-                </SheetHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <ScrollArea className="h-[calc(100vh-10rem)]">
-                      <div className="grid gap-4 py-4 px-4">
-                        <FormField
-                          control={form.control}
-                          name="id"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Student ID</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Auto-generated ID" {...field} disabled />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="admissionNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Admission Number</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="e.g., 1001" 
-                                  {...field} 
-                                  disabled={isEditMode || !!nextAdmissionNumber} 
-                                />
-                              </FormControl>
-                               { !isEditMode && !nextAdmissionNumber && (
-                                <FormDescription>
-                                  Set the starting admission number for your first student.
-                                </FormDescription>
-                               )}
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="admissionDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Admission Date</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} disabled={isEditMode} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="fullName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Full Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Aarav Sharma" {...field} disabled={isEditMode} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="pen"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Student PEN</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Personal Education Number" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="dateOfBirth"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Date of Birth</FormLabel>
-                              <FormControl>
-                                <Input type="date" {...field} disabled={isEditMode} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="parentGuardianName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Father's Full Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Rakesh Sharma" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="motherName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Mother's Full Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Sunita Sharma" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="address"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Address</FormLabel>
-                              <FormControl>
-                                <Input placeholder="123, Main Street" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="aadhaarNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Aadhar Number</FormLabel>
-                              <FormControl>
-                                <Input placeholder="xxxx-xxxx-xxxx" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="bankAccountNumber"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bank Account Number</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Bank Account Number" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="bankName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bank Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Bank Name" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="ifscCode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Bank IFSC Code</FormLabel>
-                              <FormControl>
-                                <Input placeholder="IFSC Code" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="admissionClass"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Admission Class</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditMode}>
-                                <FormControl>
-                                  <SelectTrigger disabled={isEditMode}>
-                                    <SelectValue placeholder="Select an admission class" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {classOptions.map((className) => (
-                                        <SelectItem key={className} value={className}>
-                                            Class {className}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                              {isEditMode && <FormDescription>The admission class cannot be changed.</FormDescription>}
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </ScrollArea>
-                    <SheetFooter>
-                      <SheetClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </SheetClose>
-                      <Button type="submit">{isEditMode ? 'Save Changes' : 'Save Student'}</Button>
-                    </SheetFooter>
-                  </form>
-                </Form>
-              </SheetContent>
-            </Sheet>
+            <Button size="sm" className="h-8 gap-1" onClick={() => router.push('/dashboard/new-admission')}>
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Add Student
+              </span>
+            </Button>
           </div>
         </div>
         <TabsContent value="all">
@@ -665,6 +354,228 @@ export default function StudentsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetContent className="sm:max-w-2xl">
+                <SheetHeader>
+                  <SheetTitle>Edit Student Details</SheetTitle>
+                  <SheetDescription>
+                   Update the student's information below.
+                  </SheetDescription>
+                </SheetHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)}>
+                    <ScrollArea className="h-[calc(100vh-10rem)]">
+                      <div className="grid gap-4 py-4 px-4">
+                        <FormField
+                          control={form.control}
+                          name="id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Student ID</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Auto-generated ID" {...field} disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="admissionNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Admission Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="e.g., 1001" 
+                                  {...field} 
+                                  disabled
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="admissionDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Admission Date</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="fullName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Aarav Sharma" {...field} disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="pen"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Student PEN</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Personal Education Number" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="dateOfBirth"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Date of Birth</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} disabled />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="parentGuardianName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Father's Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Rakesh Sharma" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="motherName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Mother's Full Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Sunita Sharma" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Address</FormLabel>
+                              <FormControl>
+                                <Input placeholder="123, Main Street" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="aadhaarNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Aadhar Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="xxxx-xxxx-xxxx" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="bankAccountNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank Account Number</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Bank Account Number" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="bankName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank Name</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Bank Name" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="ifscCode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Bank IFSC Code</FormLabel>
+                              <FormControl>
+                                <Input placeholder="IFSC Code" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="admissionClass"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Admission Class</FormLabel>
+                               <Select onValueChange={field.onChange} defaultValue={field.value} disabled>
+                                <FormControl>
+                                  <SelectTrigger disabled>
+                                    <SelectValue placeholder="Select an admission class" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {classOptions.map((className) => (
+                                        <SelectItem key={className} value={className}>
+                                            Class {className}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>The admission class cannot be changed.</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </ScrollArea>
+                    <SheetFooter>
+                      <SheetClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </SheetClose>
+                      <Button type="submit">Save Changes</Button>
+                    </SheetFooter>
+                  </form>
+                </Form>
+              </SheetContent>
+            </Sheet>
       
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-md">
