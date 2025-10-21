@@ -241,6 +241,10 @@
         "designationId": {
             "type": "string",
             "description": "Reference to Designation, representing the staff member's post."
+        },
+        "departmentId": {
+            "type": "string",
+            "description": "Reference to Department, representing the staff member's department."
         }
       },
       "required": [
@@ -265,6 +269,18 @@
         "id": { "type": "string" },
         "schoolId": { "type": "string" },
         "name": { "type": "string", "description": "The name of the designation (e.g., 'Principal', 'Accountant')." }
+      },
+      "required": ["id", "schoolId", "name"]
+    },
+    "Department": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Department",
+      "type": "object",
+      "description": "Represents a department within a school (e.g., 'Academics', 'Administration').",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "name": { "type": "string", "description": "The name of the department." }
       },
       "required": ["id", "schoolId", "name"]
     },
@@ -619,6 +635,18 @@
           "params": [
             { "name": "schoolId", "description": "Unique identifier for the school." },
             { "name": "designationId", "description": "Unique identifier for the designation." }
+          ]
+        }
+      },
+      {
+        "path": "/schools/{schoolId}/departments/{departmentId}",
+        "definition": {
+          "entityName": "Department",
+          "schema": { "$ref": "#/backend/entities/Department" },
+          "description": "Collection for staff departments within a school.",
+          "params": [
+            { "name": "schoolId", "description": "Unique identifier for the school." },
+            { "name": "departmentId", "description": "Unique identifier for the department." }
           ]
         }
       },

@@ -45,6 +45,7 @@ export interface Teacher {
   schoolId: string;
   uid?: string;
   designationId?: string;
+  departmentId?: string;
 }
 
 export interface ClassSection {
@@ -122,6 +123,12 @@ export interface PerformanceRecord {
 }
     
 export interface Designation {
+  id: string;
+  schoolId: string;
+  name: string;
+}
+    
+export interface Department {
   id: string;
   schoolId: string;
   name: string;

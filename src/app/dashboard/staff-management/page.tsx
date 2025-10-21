@@ -60,7 +60,7 @@ import {
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
 import { createUserWithEmailAndPassword } from "firebase/auth"
-import type { Teacher, Designation } from "@/lib/types"
+import type { Teacher, Designation, Department } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -85,11 +85,17 @@ const staffFormSchema = z.object({
   role: z.string().min(2, "Role is required."),
   subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
   designationId: z.string().optional(),
+  departmentId: z.string().optional(),
 });
 
 const designationFormSchema = z.object({
   name: z.string().min(2, "Designation name is required."),
 });
+
+const departmentFormSchema = z.object({
+  name: z.string().min(2, "Department name is required."),
+});
+
 
 export default function StaffManagementPage() {
   const { user, firestore, auth } = useFirebase();
@@ -101,6 +107,7 @@ export default function StaffManagementPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDesignationDialogOpen, setIsDesignationDialogOpen] = useState(false);
+  const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -112,8 +119,14 @@ export default function StaffManagementPage() {
     return query(collection(firestore, `schools/${schoolId}/designations`));
   }, [firestore, schoolId]);
 
+  const departmentsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/departments`));
+  }, [firestore, schoolId]);
+
   const { data: staffMembers, isLoading: staffLoading } = useCollection<Teacher>(staffQuery);
   const { data: designations, isLoading: designationsLoading } = useCollection<Designation>(designationsQuery);
+  const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
 
 
   const form = useForm<z.infer<typeof staffFormSchema>>({
@@ -128,12 +141,18 @@ export default function StaffManagementPage() {
       address: "",
       dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
       designationId: "",
+      departmentId: "",
       role: "",
     },
   });
   
   const designationForm = useForm<z.infer<typeof designationFormSchema>>({
     resolver: zodResolver(designationFormSchema),
+    defaultValues: { name: "" },
+  });
+  
+  const departmentForm = useForm<z.infer<typeof departmentFormSchema>>({
+    resolver: zodResolver(departmentFormSchema),
     defaultValues: { name: "" },
   });
 
@@ -146,6 +165,7 @@ export default function StaffManagementPage() {
           dateOfJoining: selectedStaff.dateOfJoining ? format(parseISO(selectedStaff.dateOfJoining), 'yyyy-MM-dd') : '',
           password: "",
           designationId: selectedStaff.designationId || "none",
+          departmentId: selectedStaff.departmentId || "none",
         });
       } else {
         const newStaffId = doc(collection(firestore!, `schools/${schoolId}/teachers`)).id;
@@ -159,6 +179,7 @@ export default function StaffManagementPage() {
           address: "",
           dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
           designationId: "none",
+          departmentId: "none",
           role: "",
         });
       }
@@ -200,6 +221,7 @@ export default function StaffManagementPage() {
         ...staffData,
         schoolId,
         designationId: values.designationId === 'none' ? '' : values.designationId,
+        departmentId: values.departmentId === 'none' ? '' : values.departmentId,
     };
     
     if (isEditMode) {
@@ -271,9 +293,30 @@ export default function StaffManagementPage() {
     designationForm.reset();
   }
 
+  async function onDepartmentSubmit(values: z.infer<typeof departmentFormSchema>) {
+    if (!firestore || !schoolId) return;
+
+    const departmentId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
+    const departmentRef = doc(firestore, `schools/${schoolId}/departments`, departmentId);
+    
+    setDocumentNonBlocking(departmentRef, {
+      id: departmentId,
+      schoolId: schoolId,
+      name: values.name
+    }, { merge: false });
+
+    toast({ title: "Department Created", description: `The department "${values.name}" has been created.` });
+    departmentForm.reset();
+  }
+
   const getDesignationName = (designationId?: string) => {
     if (!designationId || !designations || designationId === 'none') return "Not Assigned";
     return designations.find(d => d.id === designationId)?.name || "Not Assigned";
+  };
+  
+  const getDepartmentName = (departmentId?: string) => {
+    if (!departmentId || !departments || departmentId === 'none') return "Not Assigned";
+    return departments.find(d => d.id === departmentId)?.name || "Not Assigned";
   };
 
   const subjects = ['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies'];
@@ -296,6 +339,12 @@ export default function StaffManagementPage() {
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Export
               </span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setIsDepartmentDialogOpen(true)}>
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Add Department
+                </span>
             </Button>
             <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setIsDesignationDialogOpen(true)}>
                 <PlusCircle className="h-3.5 w-3.5" />
@@ -448,6 +497,27 @@ export default function StaffManagementPage() {
                           </FormItem>
                         )}
                       />
+                       <FormField
+                        control={form.control}
+                        name="departmentId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Department</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                              <FormControl>
+                                <SelectTrigger disabled={departmentsLoading}>
+                                  <SelectValue placeholder={departmentsLoading ? "Loading..." : "Select a department"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                {departments?.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                       <FormField
                         control={form.control}
                         name="role"
@@ -501,10 +571,10 @@ export default function StaffManagementPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Department</TableHead>
                 <TableHead>Designation</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Date of Joining</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -529,10 +599,10 @@ export default function StaffManagementPage() {
               <TableRow key={staff.id}>
                 <TableCell className="font-medium">{staff.name}</TableCell>
                 <TableCell>{staff.email}</TableCell>
+                <TableCell>{getDepartmentName(staff.departmentId)}</TableCell>
                 <TableCell>{getDesignationName(staff.designationId)}</TableCell>
                 <TableCell>{staff.contactNumber}</TableCell>
                 <TableCell>{staff.role}</TableCell>
-                <TableCell>{staff.dateOfJoining}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -574,6 +644,10 @@ export default function StaffManagementPage() {
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Full Name</span>
                 <span>{selectedStaff.name}</span>
+              </div>
+              <div className="grid grid-cols-[150px_1fr] items-center gap-2">
+                <span className="font-semibold text-muted-foreground">Department</span>
+                <span>{getDepartmentName(selectedStaff.departmentId)}</span>
               </div>
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                 <span className="font-semibold text-muted-foreground">Designation</span>
@@ -677,6 +751,52 @@ export default function StaffManagementPage() {
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDesignationDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isDepartmentDialogOpen} onOpenChange={setIsDepartmentDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Manage Departments</DialogTitle>
+                <DialogDescription>
+                    Add a new department or view existing ones.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...departmentForm}>
+                <form onSubmit={departmentForm.handleSubmit(onDepartmentSubmit)} className="space-y-4">
+                    <FormField
+                        control={departmentForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>New Department Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., Academics, Administration" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="submit">Create Department</Button>
+                </form>
+            </Form>
+            <div className="mt-6">
+                <h3 className="mb-2 text-sm font-medium text-muted-foreground">Existing Departments</h3>
+                <ScrollArea className="h-40 rounded-md border">
+                    <Table>
+                        <TableBody>
+                            {departmentsLoading && <TableRow><TableCell>Loading...</TableCell></TableRow>}
+                            {departments?.map(d => <TableRow key={d.id}><TableCell>{d.name}</TableCell></TableRow>)}
+                            {!departmentsLoading && departments?.length === 0 && (
+                                <TableRow><TableCell>No departments created yet.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDepartmentDialogOpen(false)}>Close</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
