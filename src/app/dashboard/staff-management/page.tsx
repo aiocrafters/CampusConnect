@@ -83,7 +83,6 @@ const staffFormSchema = z.object({
   address: z.string().min(5, "Address is required."),
   dateOfJoining: z.string().min(1, "Date of joining is required."),
   role: z.string().min(2, "Role is required."),
-  subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
   designationId: z.string().optional(),
   departmentId: z.string().optional(),
 });
@@ -319,8 +318,6 @@ export default function StaffManagementPage() {
     return departments.find(d => d.id === departmentId)?.name || "Not Assigned";
   };
 
-  const subjects = ['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies'];
-
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
       <Card>
@@ -531,26 +528,6 @@ export default function StaffManagementPage() {
                           </FormItem>
                         )}
                       />
-                      <FormField
-                        control={form.control}
-                        name="subject"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Primary Subject (for Teachers)</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a subject" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {subjects.map(subject => <SelectItem key={subject} value={subject}>{subject}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                     </div>
                     </ScrollArea>
                     <SheetFooter>
@@ -677,10 +654,6 @@ export default function StaffManagementPage() {
                 <span className="font-semibold text-muted-foreground">Role</span>
                 <span>{selectedStaff.role}</span>
               </div>
-              <div className="grid grid-cols-[1d, 1fr] items-center gap-2">
-                <span className="font-semibold text-muted-foreground">Subject</span>
-                <span>{selectedStaff.subject}</span>
-              </div>
             </div>
             </ScrollArea>
           )}
@@ -804,5 +777,3 @@ export default function StaffManagementPage() {
     </main>
   )
 }
-
-    

@@ -41,7 +41,6 @@ export interface Teacher {
   address: string;
   dateOfJoining: string;
   role: string;
-  subject: 'General' | 'English' | 'Urdu' | 'Math' | 'Science' | 'Social Studies';
   schoolId: string;
   uid?: string;
   designationId?: string;
