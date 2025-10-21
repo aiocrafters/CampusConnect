@@ -20,14 +20,7 @@ import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, limit, orderBy } from "firebase/firestore"
 import { Users, BookUser, School, ClipboardCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import type { Student, Teacher } from "@/lib/types";
-
-interface ClassSection {
-  id: string;
-  className: string;
-  sectionName: string;
-  sectionInchargeId?: string;
-}
+import type { Student, Teacher, ClassSection } from "@/lib/types";
 
 
 export default function Dashboard() {
@@ -165,7 +158,7 @@ export default function Dashboard() {
                         {allClassSections && allClassSections.map((section) => (
                             <TableRow key={section.id}>
                                 <TableCell className="font-medium">{section.className}</TableCell>
-                                <TableCell>{section.sectionName}</TableCell>
+                                <TableCell>{section.sectionIdentifier}</TableCell>
                                 <TableCell>{getTeacherName(section.sectionInchargeId)}</TableCell>
                             </TableRow>
                         ))}
@@ -182,5 +175,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    

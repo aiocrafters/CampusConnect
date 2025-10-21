@@ -158,9 +158,13 @@
           "type": "string",
           "description": "The name of the class (e.g., Grade 1, Grade 2)."
         },
+        "sectionIdentifier": {
+          "type": "string",
+          "description": "The standard identifier for the section (e.g., A, B, C)."
+        },
         "sectionName": {
           "type": "string",
-          "description": "The name of the section (e.g., A, B, C)."
+          "description": "The custom name of the section (e.g., Red, Blue, Green)."
         },
         "sectionInchargeId": {
           "type": "string",
@@ -171,7 +175,7 @@
         "id",
         "schoolId",
         "className",
-        "sectionName"
+        "sectionIdentifier"
       ]
     },
     "Teacher": {

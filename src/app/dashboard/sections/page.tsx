@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, writeBatch } from "firebase/firestore"
+import { collection, query, doc } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -34,19 +34,12 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import type { Teacher } from "@/lib/types"
-
-interface ClassSection {
-    id: string;
-    schoolId: string;
-    className: string;
-    sectionName: string;
-    sectionInchargeId?: string;
-}
+import type { Teacher, ClassSection } from "@/lib/types"
 
 const sectionFormSchema = z.object({
   id: z.string().optional(),
-  sectionName: z.string().min(1, "Section name is required."),
+  sectionIdentifier: z.string().min(1, "Section Identifier is required."),
+  sectionName: z.string().optional(),
   sectionInchargeId: z.string().optional(),
 });
 
@@ -80,39 +73,30 @@ export default function SectionsPage() {
 
   const sectionsForSelectedClass = useMemo(() => {
     if (!selectedClass || !allClassSections) return [];
-    return allClassSections.filter(section => section.className === selectedClass);
+    return allClassSections
+        .filter(section => section.className === selectedClass)
+        .sort((a, b) => a.sectionIdentifier.localeCompare(b.sectionIdentifier));
   }, [selectedClass, allClassSections]);
 
   const form = useForm<z.infer<typeof sectionFormSchema>>({
     resolver: zodResolver(sectionFormSchema),
     defaultValues: {
+      sectionIdentifier: "",
       sectionName: "",
       sectionInchargeId: "",
     },
   });
 
-  // Effect to create default section "A" if a class has no sections
-  useEffect(() => {
-    if (!firestore || !schoolId || !selectedClass || classSectionsLoading || !allClassSections) return;
-    
-    const sectionsExist = allClassSections.some(s => s.className === selectedClass);
-    if (!sectionsExist) {
-        const sectionId = doc(collection(firestore, `schools/${schoolId}/classSections`)).id;
-        const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, sectionId);
-        const newSection: ClassSection = {
-            id: sectionId,
-            schoolId,
-            className: selectedClass,
-            sectionName: "A",
-            sectionInchargeId: ""
-        };
-        setDocumentNonBlocking(sectionDocRef, newSection, { merge: false });
-        toast({
-            title: `Default Section Created`,
-            description: `Section "A" was automatically created for Class ${selectedClass}.`
-        });
+  const nextSectionIdentifier = useMemo(() => {
+    const existingIdentifiers = sectionsForSelectedClass.map(s => s.sectionIdentifier);
+    for (let i = 0; i < 26; i++) {
+        const identifier = String.fromCharCode(65 + i); // A, B, C...
+        if (!existingIdentifiers.includes(identifier)) {
+            return identifier;
+        }
     }
-  }, [selectedClass, allClassSections, classSectionsLoading, firestore, schoolId, toast]);
+    return "Z"; // Fallback
+  }, [sectionsForSelectedClass]);
 
 
   useEffect(() => {
@@ -120,17 +104,19 @@ export default function SectionsPage() {
       if (isEditMode && selectedSection) {
         form.reset({
           id: selectedSection.id,
+          sectionIdentifier: selectedSection.sectionIdentifier,
           sectionName: selectedSection.sectionName,
           sectionInchargeId: selectedSection.sectionInchargeId || "none",
         });
       } else {
         form.reset({
+          sectionIdentifier: nextSectionIdentifier,
           sectionName: "",
           sectionInchargeId: "none",
         });
       }
     }
-  }, [isSectionSheetOpen, isEditMode, selectedSection, form]);
+  }, [isSectionSheetOpen, isEditMode, selectedSection, form, nextSectionIdentifier]);
 
 
   const handleAddSection = () => {
@@ -172,16 +158,17 @@ export default function SectionsPage() {
         id: sectionId,
         schoolId,
         className: selectedClass,
+        sectionIdentifier: values.sectionIdentifier,
         sectionName: values.sectionName,
         sectionInchargeId: values.sectionInchargeId === 'none' ? '' : values.sectionInchargeId,
     };
     
     if (isEditMode) {
       updateDocumentNonBlocking(sectionDocRef, dataToSave);
-      toast({ title: "Section Updated", description: `Section ${values.sectionName} for Class ${selectedClass} has been updated.` });
+      toast({ title: "Section Updated", description: `Section ${values.sectionIdentifier} for Class ${selectedClass} has been updated.` });
     } else {
       setDocumentNonBlocking(sectionDocRef, dataToSave, { merge: false });
-      toast({ title: "Section Added", description: `Section ${values.sectionName} has been added to Class ${selectedClass}.` });
+      toast({ title: "Section Added", description: `Section ${values.sectionIdentifier} has been added to Class ${selectedClass}.` });
     }
 
     form.reset();
@@ -197,7 +184,7 @@ export default function SectionsPage() {
     }
     const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, selectedSection.id);
     deleteDocumentNonBlocking(sectionDocRef);
-    toast({ title: "Section Deleted", description: `Section ${selectedSection.sectionName} has been removed.` });
+    toast({ title: "Section Deleted", description: `Section ${selectedSection.sectionIdentifier} has been removed.` });
     setIsDeleteDialogOpen(false);
     setSelectedSection(null);
   }
@@ -238,7 +225,8 @@ export default function SectionsPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Section Name</TableHead>
+                                    <TableHead>Section</TableHead>
+                                    <TableHead>Section Name (Custom)</TableHead>
                                     <TableHead>Section Incharge</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -246,17 +234,18 @@ export default function SectionsPage() {
                              <TableBody>
                                 {classSectionsLoading && (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center">Loading sections...</TableCell>
+                                        <TableCell colSpan={4} className="text-center">Loading sections...</TableCell>
                                     </TableRow>
                                 )}
                                 {!classSectionsLoading && sectionsForSelectedClass.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center">No sections found. Add one to get started.</TableCell>
+                                        <TableCell colSpan={4} className="text-center">No sections found. Add one to get started.</TableCell>
                                     </TableRow>
                                 )}
                                 {sectionsForSelectedClass.map(section => (
                                     <TableRow key={section.id}>
-                                        <TableCell>{section.sectionName}</TableCell>
+                                        <TableCell>{section.sectionIdentifier}</TableCell>
+                                        <TableCell>{section.sectionName || '-'}</TableCell>
                                         <TableCell>{getTeacherName(section.sectionInchargeId)}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => handleEditSection(section)}>
@@ -289,12 +278,25 @@ export default function SectionsPage() {
                     <div className="grid gap-4 py-4">
                         <FormField
                             control={form.control}
+                            name="sectionIdentifier"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Section</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., A, B, C" {...field} disabled />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
                             name="sectionName"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Section Name</FormLabel>
+                                    <FormLabel>Section Name (Optional)</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g., A, B, C" {...field} />
+                                        <Input placeholder="e.g., Red, Blue, Green" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -340,7 +342,7 @@ export default function SectionsPage() {
           <DialogHeader>
             <DialogTitle>Are you sure?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete the section <span className="font-semibold">{selectedSection?.sectionName}</span> from Class {selectedClass}. Any students in this section will need to be reassigned.
+              This action cannot be undone. This will permanently delete the section <span className="font-semibold">{selectedSection?.sectionIdentifier}</span> from Class {selectedClass}. Any students in this section will need to be reassigned.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -356,5 +358,3 @@ export default function SectionsPage() {
     </main>
   )
 }
-
-    

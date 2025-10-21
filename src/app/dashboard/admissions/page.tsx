@@ -11,14 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { Student } from "@/lib/types"
+import type { Student, ClassSection } from "@/lib/types"
 import { Rocket } from "lucide-react"
-
-interface ClassSection {
-    id: string;
-    className: string;
-    sectionName: string;
-}
 
 const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 const currentYear = new Date().getFullYear();
@@ -59,7 +53,7 @@ export default function ClassAdmissionPage() {
             return;
         }
 
-        const toSection = allClassSections?.find(s => s.className === toClass && s.sectionName === 'A');
+        const toSection = allClassSections?.find(s => s.className === toClass && s.sectionIdentifier === 'A');
         if (!toSection) {
             toast({ variant: "destructive", title: "Destination Section Not Found", description: `Default section 'A' not found for Class ${toClass}. Please create it first.` });
             return;
@@ -142,7 +136,7 @@ export default function ClassAdmissionPage() {
                             <Select onValueChange={setFromSectionId} value={fromSectionId || ''} disabled={!fromClass}>
                                 <SelectTrigger><SelectValue placeholder="Select Section" /></SelectTrigger>
                                 <SelectContent>
-                                    {fromSections?.map(s => <SelectItem key={s.id} value={s.id}>{s.sectionName}</SelectItem>)}
+                                    {fromSections?.map(s => <SelectItem key={s.id} value={s.id}>{s.sectionIdentifier}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>

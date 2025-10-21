@@ -1,6 +1,5 @@
 
 
-
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -44,6 +43,15 @@ export interface Teacher {
   subject: 'General' | 'English' | 'Urdu' | 'Math' | 'Science' | 'Social Studies';
   schoolId: string;
   uid?: string;
+}
+
+export interface ClassSection {
+  id: string;
+  schoolId: string;
+  className: string;
+  sectionIdentifier: string;
+  sectionName?: string;
+  sectionInchargeId?: string;
 }
 
 export interface SchoolClass {

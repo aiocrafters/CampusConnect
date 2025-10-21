@@ -66,7 +66,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, writeBatch } from "firebase/firestore"
-import type { Student } from "@/lib/types"
+import type { Student, ClassSection } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -76,12 +76,6 @@ import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
-
-interface ClassSection {
-  id: string;
-  className: string;
-  sectionName: string;
-}
 
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
@@ -130,11 +124,11 @@ export default function StudentsPage() {
 
 
   const getSectionDetails = (sectionId?: string) => {
-    if (!classSections || !sectionId) return { className: "N/A", sectionName: "" };
+    if (!classSections || !sectionId) return { className: "N/A", sectionIdentifier: "" };
     const section = classSections.find(s => s.id === sectionId);
     return section 
-      ? { className: section.className, sectionName: section.sectionName } 
-      : { className: "Not Assigned", sectionName: "" };
+      ? { className: section.className, sectionIdentifier: section.sectionIdentifier } 
+      : { className: "Not Assigned", sectionIdentifier: "" };
   };
 
 
@@ -618,7 +612,7 @@ export default function StudentsPage() {
                     </TableRow>
                   )}
                   {students && students.map(student => {
-                    const { className, sectionName } = getSectionDetails(student.classSectionId);
+                    const { className, sectionIdentifier } = getSectionDetails(student.classSectionId);
                     return (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium truncate max-w-[100px]">{student.id}</TableCell>
@@ -633,7 +627,7 @@ export default function StudentsPage() {
                         <TableCell>{student.dateOfBirth}</TableCell>
                         <TableCell>{student.admissionClass}</TableCell>
                         <TableCell>{className}</TableCell>
-                        <TableCell>{sectionName}</TableCell>
+                        <TableCell>{sectionIdentifier}</TableCell>
                         <TableCell>{student.parentGuardianName}</TableCell>
                         <TableCell>{student.motherName}</TableCell>
                         <TableCell className="truncate max-w-xs">{student.address}</TableCell>
@@ -713,7 +707,7 @@ export default function StudentsPage() {
                 </div>
                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                   <span className="font-semibold text-muted-foreground">Current Section</span>
-                  <span>{getSectionDetails(selectedStudent.classSectionId).sectionName}</span>
+                  <span>{getSectionDetails(selectedStudent.classSectionId).sectionIdentifier}</span>
                 </div>
                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
                   <span className="font-semibold text-muted-foreground">Father's Name</span>
@@ -819,5 +813,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-  

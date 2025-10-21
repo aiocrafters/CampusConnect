@@ -9,14 +9,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Student } from "@/lib/types"
-
-interface ClassSection {
-    id: string;
-    schoolId: string;
-    className: string;
-    sectionName: string;
-}
+import type { Student, ClassSection } from "@/lib/types"
 
 const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
@@ -135,7 +128,7 @@ export default function ClassesPage() {
                                                     {sectionsForSelectedClass.length > 0 ? (
                                                         sectionsForSelectedClass.map(section => (
                                                             <SelectItem key={section.id} value={section.id}>
-                                                                {section.sectionName}
+                                                                {section.sectionIdentifier}
                                                             </SelectItem>
                                                         ))
                                                     ) : (
@@ -156,5 +149,3 @@ export default function ClassesPage() {
     </main>
   )
 }
-
-  
