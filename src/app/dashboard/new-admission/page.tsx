@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useFirebase, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, writeBatch, orderBy, limit } from "firebase/firestore"
 import type { Student, ClassSection } from "@/lib/types"
@@ -223,212 +222,210 @@ export default function NewAdmissionPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-              <ScrollArea className="h-[calc(100vh-20rem)]">
-                <div className="grid md:grid-cols-2 gap-6 p-4">
-                  <FormField
-                    control={form.control}
-                    name="id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Student ID</FormLabel>
+              <div className="grid md:grid-cols-2 gap-6 p-4">
+                <FormField
+                  control={form.control}
+                  name="id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Student ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Auto-generated ID" {...field} disabled />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="admissionNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Admission Number</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., 1001" 
+                          {...field} 
+                          disabled={!!nextAdmissionNumber} 
+                        />
+                      </FormControl>
+                       { !nextAdmissionNumber && (
+                        <FormDescription>
+                          Set the starting admission number for your first student.
+                        </FormDescription>
+                       )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="admissionDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Admission Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Aarav Sharma" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="pen"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Student PEN</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Personal Education Number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="parentGuardianName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Father's Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Rakesh Sharma" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="motherName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mother's Full Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Sunita Sharma" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123, Main Street, City, State, Pin Code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="aadhaarNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Aadhar Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="xxxx-xxxx-xxxx" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bankAccountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Account Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Bank Account Number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bankName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Bank Name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="ifscCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank IFSC Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="IFSC Code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="admissionClass"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Admission Class</FormLabel>
+                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <Input placeholder="Auto-generated ID" {...field} disabled />
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an admission class" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="admissionNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Admission Number</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., 1001" 
-                            {...field} 
-                            disabled={!!nextAdmissionNumber} 
-                          />
-                        </FormControl>
-                         { !nextAdmissionNumber && (
-                          <FormDescription>
-                            Set the starting admission number for your first student.
-                          </FormDescription>
-                         )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="admissionDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Admission Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="fullName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Aarav Sharma" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="pen"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Student PEN</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Personal Education Number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="dateOfBirth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Birth</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="parentGuardianName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Father's Full Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Rakesh Sharma" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="motherName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mother's Full Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Sunita Sharma" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Address</FormLabel>
-                        <FormControl>
-                          <Input placeholder="123, Main Street, City, State, Pin Code" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="aadhaarNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Aadhar Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="xxxx-xxxx-xxxx" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bankAccountNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Account Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bank Account Number" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="bankName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bank Name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="ifscCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bank IFSC Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="IFSC Code" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="admissionClass"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Admission Class</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select an admission class" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                              {classOptions.map((className) => (
-                                  <SelectItem key={className} value={className}>
-                                      Class {className}
-                                  </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </ScrollArea>
+                        <SelectContent>
+                            {classOptions.map((className) => (
+                                <SelectItem key={className} value={className}>
+                                    Class {className}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <div className="flex justify-end gap-2 pt-6">
                 <Button variant="outline" type="button" onClick={() => router.push('/dashboard/students')}>Cancel</Button>
                 <Button type="submit">Save Student</Button>
@@ -489,3 +486,4 @@ export default function NewAdmissionPage() {
   )
 }
 
+    
