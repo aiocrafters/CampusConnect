@@ -7,7 +7,7 @@ import { doc, collection, query, orderBy, where, getDoc, getDocs } from "firebas
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { Student, StudentTimelineEvent, Exam, Subject, PerformanceRecord } from "@/lib/types";
-import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap, ArrowRight, Edit, ShieldCheck } from "lucide-react";
+import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap, ArrowRight, Edit, ShieldCheck, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter, SheetClose } from "@/components/ui/sheet";
@@ -65,6 +65,7 @@ export default function StudentDetailPage() {
     
     const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
     const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
     const [inactiveReason, setInactiveReason] = useState('');
 
@@ -97,11 +98,11 @@ export default function StudentDetailPage() {
     }, [isEditSheetOpen, student, form]);
 
     useEffect(() => {
-        if (isStatusDialogOpen && student) {
+        if ((isStatusDialogOpen || isDeleteDialogOpen) && student) {
             setCurrentStatus(student.status);
             setInactiveReason(student.inactiveReason || '');
         }
-    }, [isStatusDialogOpen, student]);
+    }, [isStatusDialogOpen, isDeleteDialogOpen, student]);
 
     async function onEditSubmit(values: z.infer<typeof studentFormSchema>) {
         if (!studentRef) {
@@ -118,13 +119,26 @@ export default function StudentDetailPage() {
           toast({ variant: "destructive", title: "Error", description: "Could not save status." });
           return;
         }
+        
+        let statusToSave = currentStatus;
+        if (isDeleteDialogOpen) {
+            statusToSave = 'Inactive';
+            if (!inactiveReason) {
+                toast({ variant: "destructive", title: "Reason Required", description: "Please provide a reason for deleting the student." });
+                return;
+            }
+        }
+
         const dataToUpdate: Partial<Student> = {
-          status: currentStatus,
-          inactiveReason: currentStatus === 'Inactive' ? inactiveReason : '',
+          status: statusToSave,
+          inactiveReason: statusToSave === 'Inactive' ? inactiveReason : '',
         };
+
         updateDocumentNonBlocking(studentRef, dataToUpdate);
         toast({ title: "Status Updated", description: `${student.fullName}'s status has been updated.`});
         setIsStatusDialogOpen(false);
+        setIsDeleteDialogOpen(false);
+        setInactiveReason('');
     }
 
     const handleEventClick = async (event: StudentTimelineEvent) => {
@@ -236,8 +250,9 @@ export default function StudentDetailPage() {
                                 </CardDescription>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setIsEditSheetOpen(true)}><Edit className="mr-2 h-4 w-4"/>Edit</Button>
-                                <Button variant="outline" size="sm" onClick={() => setIsStatusDialogOpen(true)}><ShieldCheck className="mr-2 h-4 w-4"/>Status</Button>
+                                <Button variant="outline" size="icon" onClick={() => setIsEditSheetOpen(true)}><Edit className="h-4 w-4"/></Button>
+                                <Button variant="outline" size="icon" onClick={() => setIsStatusDialogOpen(true)}><ShieldCheck className="h-4 w-4"/></Button>
+                                <Button variant="destructive" size="icon" onClick={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4"/></Button>
                             </div>
                         </div>
                     </CardHeader>
@@ -490,6 +505,27 @@ export default function StudentDetailPage() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Are you sure?</DialogTitle>
+                        <DialogDescription>
+                            This will mark the student '{student?.fullName}' as inactive. This action can be reversed later. Please provide a reason.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <Label htmlFor="delete-reason">Reason for Deletion</Label>
+                        <Textarea id="delete-reason" value={inactiveReason} onChange={(e) => setInactiveReason(e.target.value)} placeholder="e.g., Transferred to another school, Left school, etc."/>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleSaveStatus}>Yes, Mark as Inactive</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
+
+    
