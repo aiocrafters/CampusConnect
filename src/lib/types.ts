@@ -63,9 +63,9 @@ export interface SchoolClass {
 
 export interface Exam {
   id: string;
-  name: string;
-  date: string;
-  class: string;
+  schoolId: string;
+  examName: string;
+  className: string;
 }
 
 export interface MasterSubject {
@@ -96,4 +96,6 @@ export interface Promotion {
     studentIds: string[];
     promotionDate: string;
 }
+    
+
     

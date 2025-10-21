@@ -33,23 +33,10 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import type { Teacher } from "@/lib/types"
+import type { Teacher, Exam } from "@/lib/types"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 // Data types
-interface ClassSection {
-  id: string;
-  className: string;
-  sectionName: string;
-}
-
-interface Exam {
-  id: string;
-  examName: string;
-  classSectionId: string;
-  schoolId: string;
-}
-
 interface Subject {
     id: string;
     examId: string;
@@ -76,7 +63,6 @@ export default function ExamsPage() {
 
   // State management
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [isExamSheetOpen, setIsExamSheetOpen] = useState(false);
   const [isSubjectSheetOpen, setIsSubjectSheetOpen] = useState(false);
@@ -97,16 +83,10 @@ export default function ExamsPage() {
   });
 
   // Data fetching
-  const classSectionsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/classSections`));
-  }, [firestore, schoolId]);
-  const { data: allClassSections } = useCollection<ClassSection>(classSectionsQuery);
-
   const examsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId || !selectedSectionId) return null;
-    return query(collection(firestore, `schools/${schoolId}/exams`), where("classSectionId", "==", selectedSectionId));
-  }, [firestore, schoolId, selectedSectionId]);
+    if (!firestore || !schoolId || !selectedClass) return null;
+    return query(collection(firestore, `schools/${schoolId}/exams`), where("className", "==", selectedClass));
+  }, [firestore, schoolId, selectedClass]);
   const { data: exams, isLoading: examsLoading } = useCollection<Exam>(examsQuery);
   
   const subjectsQuery = useMemoFirebase(() => {
@@ -122,23 +102,7 @@ export default function ExamsPage() {
   const { data: teachers } = useCollection<Teacher>(teachersQuery);
 
   // Memoized data transformations
-  const classOptions = useMemo(() => {
-    if (!allClassSections) return [];
-    return [...new Set(allClassSections.map(s => s.className))].sort((a,b) => {
-        const aIsNum = !isNaN(parseInt(a));
-        const bIsNum = !isNaN(parseInt(b));
-
-        if(aIsNum && bIsNum) return parseInt(a) - parseInt(b);
-        if(aIsNum) return -1;
-        if(bIsNum) return 1;
-        return a.localeCompare(b);
-    });
-  }, [allClassSections]);
-
-  const sectionOptions = useMemo(() => {
-    if (!allClassSections || !selectedClass) return [];
-    return allClassSections.filter(s => s.className === selectedClass);
-  }, [allClassSections, selectedClass]);
+  const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
   
 
   // Handlers
@@ -155,7 +119,7 @@ export default function ExamsPage() {
   };
 
   const onExamSubmit = (values: z.infer<typeof examFormSchema>) => {
-    if (!firestore || !schoolId || !selectedSectionId) return;
+    if (!firestore || !schoolId || !selectedClass) return;
 
     const examId = selectedExam ? selectedExam.id : doc(collection(firestore, `schools/${schoolId}/exams`)).id;
     const examDocRef = doc(firestore, `schools/${schoolId}/exams`, examId);
@@ -163,7 +127,7 @@ export default function ExamsPage() {
     const data = {
         id: examId,
         schoolId,
-        classSectionId: selectedSectionId,
+        className: selectedClass,
         ...values
     };
 
@@ -172,7 +136,7 @@ export default function ExamsPage() {
       toast({ title: "Exam Updated", description: `${values.examName} has been updated.` });
     } else {
       setDocumentNonBlocking(examDocRef, data, { merge: false });
-      toast({ title: "Exam Created", description: `${values.examName} has been created.` });
+      toast({ title: "Exam Created", description: `${values.examName} has been created for Class ${selectedClass}.` });
     }
     setIsExamSheetOpen(false);
   };
@@ -238,12 +202,12 @@ export default function ExamsPage() {
         <CardHeader>
           <CardTitle>Exam & Performance Management</CardTitle>
           <CardDescription>
-            Create exams and manage subjects for each class section.
+            Create exams and manage subjects for each class.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-            <Select onValueChange={value => { setSelectedClass(value); setSelectedSectionId(null); }} value={selectedClass || ''}>
+            <Select onValueChange={setSelectedClass} value={selectedClass || ''}>
               <SelectTrigger className="w-full sm:w-[280px]">
                 <SelectValue placeholder="Choose a class" />
               </SelectTrigger>
@@ -251,22 +215,12 @@ export default function ExamsPage() {
                 {classOptions.map(c => <SelectItem key={c} value={c}>Class {c}</SelectItem>)}
               </SelectContent>
             </Select>
-            {selectedClass && (
-              <Select onValueChange={setSelectedSectionId} value={selectedSectionId || ''} disabled={sectionOptions.length === 0}>
-                <SelectTrigger className="w-full sm:w-[280px]">
-                  <SelectValue placeholder={sectionOptions.length > 0 ? "Choose a section" : "No sections for this class"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sectionOptions.map(s => <SelectItem key={s.id} value={s.id}>Section {s.sectionName}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
           </div>
           
-          {selectedSectionId && (
+          {selectedClass && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold">Exams</h3>
+                <h3 className="text-xl font-semibold">Exams for Class {selectedClass}</h3>
                 <Button size="sm" className="h-8 gap-1" onClick={() => handleOpenExamSheet(null)}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
@@ -335,7 +289,7 @@ export default function ExamsPage() {
                   ))}
                 </Accordion>
                ) : (
-                <p>No exams created for this section yet.</p>
+                <p>No exams created for this class yet.</p>
                )
               }
             </div>
@@ -347,7 +301,7 @@ export default function ExamsPage() {
       <Sheet open={isExamSheetOpen} onOpenChange={setIsExamSheetOpen}>
         <SheetContent>
             <SheetHeader>
-                <SheetTitle>{selectedExam ? 'Edit Exam' : 'Create New Exam'}</SheetTitle>
+                <SheetTitle>{selectedExam ? 'Edit Exam' : `Create Exam for Class ${selectedClass}`}</SheetTitle>
             </SheetHeader>
             <Form {...examForm}>
                 <form onSubmit={examForm.handleSubmit(onExamSubmit)} className="flex flex-col h-full">
@@ -368,7 +322,7 @@ export default function ExamsPage() {
                     </div>
                     <SheetFooter className="mt-auto">
                         <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
-                        <Button type="submit">{selectedExam ? 'Save Changes' : 'Create Exam'}</Button>
+                        <Button type="submit" disabled={!selectedClass}>{selectedExam ? 'Save Changes' : 'Create Exam'}</Button>
                     </SheetFooter>
                 </form>
             </Form>
