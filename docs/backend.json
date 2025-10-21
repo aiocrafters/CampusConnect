@@ -483,6 +483,19 @@
           "promotionDate": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "schoolId", "academicYear", "fromClassSectionId", "toClassSectionId", "studentIds", "promotionDate"]
+    },
+    "UniqueIdentifier": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UniqueIdentifier",
+      "type": "object",
+      "description": "Used to enforce uniqueness for specific fields like phone numbers. The document ID is the value being checked (e.g., 'phoneNumber_1234567890').",
+      "properties": {
+        "schoolId": {
+          "type": "string",
+          "description": "The ID of the school this unique identifier belongs to."
+        }
+      },
+      "required": ["schoolId"]
     }
   },
   "auth": {
@@ -719,6 +732,22 @@
           "params": [
             { "name": "schoolId", "description": "Unique identifier for the school." },
             { "name": "promotionId", "description": "Unique identifier for the promotion record." }
+          ]
+        }
+      },
+      {
+        "path": "/unique_identifiers/{identifier}",
+        "definition": {
+          "entityName": "UniqueIdentifier",
+          "schema": {
+            "$ref": "#/backend/entities/UniqueIdentifier"
+          },
+          "description": "Collection to enforce uniqueness on fields like phone numbers. The document ID is the field value itself.",
+          "params": [
+            {
+              "name": "identifier",
+              "description": "Unique identifier value (e.g., 'phoneNumber_1234567890')."
+            }
           ]
         }
       }

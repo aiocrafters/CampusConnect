@@ -52,9 +52,9 @@ export default function RegisterPage() {
             const userCredential = await createUserWithEmailAndPassword(auth, contactEmail, password);
             const user = userCredential.user;
 
-            // --- Create school and master classes in a batch ---
             const batch = writeBatch(firestore);
 
+            // 1. Create the school document
             const schoolData = {
                 id: user.uid,
                 schoolName,
@@ -64,23 +64,22 @@ export default function RegisterPage() {
                 contactPhoneNumber: contactPhone,
                 adminName,
             };
-
-            // Create school document with the user's UID as the document ID
             const schoolDocRef = doc(firestore, "schools", user.uid);
             batch.set(schoolDocRef, schoolData);
 
-            // Create master classes
+            // 2. Create the master classes
             basicClasses.forEach(className => {
                 const classId = doc(collection(firestore, `schools/${user.uid}/masterClasses`)).id;
                 const classRef = doc(firestore, `schools/${user.uid}/masterClasses`, classId);
-                batch.set(classRef, {
-                    id: classId,
-                    schoolId: user.uid,
-                    className: className
-                });
+                batch.set(classRef, { id: classId, schoolId: user.uid, className });
             });
+            
+            // 3. Reserve the unique phone number
+            const uniquePhoneNumberId = `phoneNumber_${contactPhone}`;
+            const uniqueIdentifierRef = doc(firestore, "unique_identifiers", uniquePhoneNumberId);
+            batch.set(uniqueIdentifierRef, { schoolId: user.uid });
 
-            // Commit the batch
+
             await batch.commit();
             
             toast({
@@ -90,27 +89,24 @@ export default function RegisterPage() {
             router.push('/login?role=school');
 
         } catch (error: any) {
-             if (error.code === 'permission-denied' || error.name === 'FirebaseError') {
-                const permissionError = new FirestorePermissionError({
-                    path: 'schools',
-                    operation: 'create', 
-                });
-                errorEmitter.emit('permission-error', permissionError);
+            let errorMessage = "An unexpected error occurred. Please try again.";
+
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = "This email is already registered. Please log in or use a different email.";
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = "The password is too weak. Please use a stronger password.";
+            } else if (error.code === 'permission-denied') {
+                // This is a likely indicator that the unique_identifiers write failed.
+                errorMessage = "This contact phone number is already in use by another school.";
             } else {
                 console.error("Registration Error: ", error);
-                let errorMessage = "An unexpected error occurred. Please try again.";
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = "This email is already registered. Please log in or use a different email.";
-                } else if (error.code === 'auth/weak-password') {
-                    errorMessage = "The password is too weak. Please use a stronger password.";
-                }
-                
-                toast({
-                    variant: "destructive",
-                    title: "Registration Failed",
-                    description: errorMessage,
-                });
             }
+            
+            toast({
+                variant: "destructive",
+                title: "Registration Failed",
+                description: errorMessage,
+            });
         } finally {
             setIsLoading(false);
         }
@@ -188,3 +184,5 @@ export default function RegisterPage() {
         </div>
     );
 }
+
+    
