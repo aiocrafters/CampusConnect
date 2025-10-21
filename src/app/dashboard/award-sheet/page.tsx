@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Student, Exam, Subject, ClassSection, PerformanceRecord } from '@/lib/types';
 import { Save } from 'lucide-react';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 const marksSchema = z.object({
   marks: z.array(
@@ -90,19 +91,29 @@ export default function AwardSheetPage() {
                 where('examId', '==', selectedSubject.examId),
                 where('subjectId', '==', selectedSubject.id)
             );
-            const recordsSnapshot = await getDocs(q);
-            const existingMarks = new Map<string, number>();
-            recordsSnapshot.forEach(doc => {
-                const record = doc.data() as PerformanceRecord;
-                existingMarks.set(record.studentId, record.marks);
-            });
 
-            const marksData = students.map(student => ({
-                studentId: student.id,
-                marks: existingMarks.get(student.id) ?? undefined,
-            }));
-            replace(marksData);
-            setIsLoadingMarks(false);
+            try {
+                const recordsSnapshot = await getDocs(q);
+                const existingMarks = new Map<string, number>();
+                recordsSnapshot.forEach(doc => {
+                    const record = doc.data() as PerformanceRecord;
+                    existingMarks.set(record.studentId, record.marks);
+                });
+
+                const marksData = students.map(student => ({
+                    studentId: student.id,
+                    marks: existingMarks.get(student.id) ?? undefined,
+                }));
+                replace(marksData);
+            } catch (error) {
+                const permissionError = new FirestorePermissionError({
+                    path: `schools/${schoolId}/performanceRecords`,
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            } finally {
+                setIsLoadingMarks(false);
+            }
         } else {
              replace([]);
         }
@@ -277,5 +288,3 @@ export default function AwardSheetPage() {
     </main>
   );
 }
-
-    
