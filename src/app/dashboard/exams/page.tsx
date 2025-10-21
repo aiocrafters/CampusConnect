@@ -2,12 +2,13 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { PlusCircle, Edit, Trash2, BookOpen } from "lucide-react"
+import { PlusCircle, Edit, Trash2, BookOpen, Calendar as CalendarIcon } from "lucide-react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, where, collectionGroup } from "firebase/firestore"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { format } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -30,20 +31,15 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import type { Teacher, Exam } from "@/lib/types"
+import type { Teacher, Exam, Subject } from "@/lib/types"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { cn } from "@/lib/utils"
 
-// Data types
-interface Subject {
-    id: string;
-    examId: string;
-    subjectName: string;
-    teacherId: string;
-    maxMarks: number;
-}
 
 // Zod schemas
 const examFormSchema = z.object({
@@ -54,6 +50,9 @@ const subjectFormSchema = z.object({
   subjectName: z.string().min(2, "Subject name is required."),
   teacherId: z.string().min(1, "Please assign a teacher."),
   maxMarks: z.coerce.number().min(1, "Max marks are required.").max(500),
+  examDate: z.date({
+    required_error: "Exam date is required.",
+  }),
 });
 
 export default function ExamsPage() {
@@ -151,7 +150,8 @@ export default function ExamsPage() {
         id: subjectId,
         examId: selectedExam.id,
         schoolId: schoolId,
-        ...values
+        ...values,
+        examDate: values.examDate.toISOString(),
     };
     
     setDocumentNonBlocking(subjectDocRef, data, { merge: false });
@@ -260,6 +260,7 @@ export default function ExamsPage() {
                                         <TableHead>Subject</TableHead>
                                         <TableHead>Teacher</TableHead>
                                         <TableHead>Max Marks</TableHead>
+                                        <TableHead>Exam Date</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -269,6 +270,7 @@ export default function ExamsPage() {
                                             <TableCell>{subject.subjectName}</TableCell>
                                             <TableCell>{getTeacherName(subject.teacherId)}</TableCell>
                                             <TableCell>{subject.maxMarks}</TableCell>
+                                            <TableCell>{format(new Date(subject.examDate), "PPP")}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteSubject(subject)}>
                                                     <Trash2 className="h-4 w-4" />
@@ -278,7 +280,7 @@ export default function ExamsPage() {
                                     ))}
                                      {getSubjectsForExam(exam.id).length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center">No subjects added yet.</TableCell>
+                                            <TableCell colSpan={5} className="text-center">No subjects added yet.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -370,6 +372,47 @@ export default function ExamsPage() {
                                     <FormLabel>Maximum Marks</FormLabel>
                                     <FormControl><Input type="number" {...field} /></FormControl>
                                     <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={subjectForm.control}
+                            name="examDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Exam Date</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP")
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        disabled={(date) =>
+                                            date < new Date(new Date().setHours(0,0,0,0))
+                                        }
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
                                 </FormItem>
                             )}
                         />

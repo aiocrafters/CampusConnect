@@ -293,13 +293,24 @@
         "teacherId": {
           "type": "string",
           "description": "Reference to Teacher. (Relationship: Teacher 1:N Subject)"
+        },
+        "maxMarks": {
+            "type": "number",
+            "description": "Maximum marks for the subject in this exam."
+        },
+        "examDate": {
+            "type": "string",
+            "description": "The date of the exam for this subject.",
+            "format": "date-time"
         }
       },
       "required": [
         "id",
         "examId",
         "subjectName",
-        "teacherId"
+        "teacherId",
+        "maxMarks",
+        "examDate"
       ]
     },
     "MasterSubject": {

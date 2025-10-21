@@ -68,6 +68,15 @@ export interface Exam {
   className: string;
 }
 
+export interface Subject {
+    id: string;
+    examId: string;
+    subjectName: string;
+    teacherId: string;
+    maxMarks: number;
+    examDate: string;
+}
+
 export interface MasterSubject {
   id: string;
   schoolId: string;
