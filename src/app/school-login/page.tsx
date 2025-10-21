@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -15,7 +14,7 @@ import { useFirebase } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
 
-export default function LoginPage() {
+export default function SchoolLoginPage() {
   const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
   const router = useRouter();
   const { toast } = useToast();
@@ -83,12 +82,12 @@ export default function LoginPage() {
               <h1 className="text-3xl font-bold font-headline">CampusConnect</h1>
             </Link>
             <p className="text-balance text-muted-foreground">
-              Sign in to your school account
+              Sign in to your school administrator account
             </p>
           </div>
           <Card className="z-20">
             <CardHeader>
-              <CardTitle className="text-2xl">Login</CardTitle>
+              <CardTitle className="text-2xl">School Login</CardTitle>
               <CardDescription>
                 Enter your credentials to access your dashboard.
               </CardDescription>

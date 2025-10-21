@@ -95,6 +95,18 @@ export default function RegisterPage() {
 
         const phoneIdentifier = `phoneNumber_${contactPhone}`;
         const uniqueIdRef = doc(firestore, "unique_identifiers", phoneIdentifier);
+        
+        const existingDoc = await getDoc(uniqueIdRef);
+        if (existingDoc.exists()) {
+            toast({
+                variant: "destructive",
+                title: "Registration Failed",
+                description: "This contact phone number is already in use by another school.",
+            });
+            setIsLoading(false);
+            return;
+        }
+        
         batch.set(uniqueIdRef, { schoolId: user.uid });
 
         basicClasses.forEach(className => {
@@ -163,7 +175,7 @@ export default function RegisterPage() {
                             </Button>
                              <div className="mt-4 text-center text-sm">
                                 Already have an account?{" "}
-                                <Link href="/login" className="underline">
+                                <Link href="/school-login" className="underline">
                                     Login
                                 </Link>
                             </div>
@@ -174,7 +186,7 @@ export default function RegisterPage() {
                          <CardHeader className="text-center">
                             <Link href="/" className="flex justify-center items-center gap-2 mb-2">
                                 <BookOpenCheck className="h-8 w-8 text-primary" />
-                                <h1 className="text-3xl font-bold font-headline">CampusConnect_new</h1>
+                                <h1 className="text-3xl font-bold font-headline">CampusConnect</h1>
                             </Link>
                             <CardTitle className="text-2xl">Register Your School</CardTitle>
                             <CardDescription>

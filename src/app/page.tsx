@@ -17,8 +17,8 @@ export default function LandingPage() {
     },
     {
       icon: <Users className="h-10 w-10 text-primary" />,
-      title: "Student & Teacher Profiles",
-      description: "Manage student information, track academic progress, and maintain teacher records.",
+      title: "Student & Staff Profiles",
+      description: "Manage student information, track academic progress, and maintain staff records.",
     },
     {
       icon: <FileText className="h-10 w-10 text-primary" />,
@@ -44,13 +44,13 @@ export default function LandingPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem asChild>
-                  <Link href="/login?role=school">School Login</Link>
+                  <Link href="/school-login">School Login</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/login?role=teacher">Teacher Login</Link>
+                  <Link href="/staff-login">Staff Login</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/login?role=student">Student Login</Link>
+                  <Link href="/student-login">Student Login</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
