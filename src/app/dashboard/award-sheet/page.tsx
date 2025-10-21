@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs, collectionGroup } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
