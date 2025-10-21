@@ -27,7 +27,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { auth, firestore } = useFirebase();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("admin");
+  const [activeTab, setActiveTab] = useState("school");
   const [dob, setDob] = useState<Date>();
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function LoginPage() {
     } else if (role === 'teacher') {
       setActiveTab('teacher');
     } else {
-      setActiveTab('admin');
+      setActiveTab('school');
     }
   }, [searchParams]);
 
@@ -115,11 +115,11 @@ export default function LoginPage() {
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="admin">School</TabsTrigger>
+                  <TabsTrigger value="school">School</TabsTrigger>
                   <TabsTrigger value="teacher">Teacher</TabsTrigger>
                   <TabsTrigger value="student">Student</TabsTrigger>
                 </TabsList>
-                <TabsContent value="admin">
+                <TabsContent value="school">
                   <form onSubmit={handleAdminTeacherLogin} className="pt-4">
                      <p className="text-sm text-muted-foreground text-center mb-4">For school administrators.</p>
                     <div className="grid gap-4">
