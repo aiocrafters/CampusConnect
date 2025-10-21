@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { BookOpenCheck, School, Users, FileText, ChevronDown } from "lucide-react";
+import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase } from "@/firebase";
 import { collection, query, where, getDocs, setDoc, doc, writeBatch } from "firebase/firestore";
@@ -32,11 +32,11 @@ export default function RegisterPage() {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                // Check if a school is already registered for this user
-                const schoolDocRef = doc(firestore!, "schools", currentUser.uid);
-                const docSnap = await getDocs(query(collection(firestore!, 'schools'), where('id', '==', currentUser.uid)));
-                setIsSchoolRegistered(!docSnap.empty);
-                if(!docSnap.empty) {
+                const schoolQuery = query(collection(firestore!, 'schools'), where('id', '==', currentUser.uid));
+                const schoolSnap = await getDocs(schoolQuery);
+                const schoolExists = !schoolSnap.empty;
+                setIsSchoolRegistered(schoolExists);
+                if(schoolExists) {
                   router.push('/dashboard');
                 }
             } else {
@@ -56,7 +56,6 @@ export default function RegisterPage() {
         const provider = new GoogleAuthProvider();
         try {
             await signInWithPopup(auth, provider);
-            // onAuthStateChanged will handle the user state update
         } catch (error) {
             console.error("Google Sign-In Error: ", error);
             toast({ variant: "destructive", title: "Google Sign-In Failed", description: "Could not sign in with Google. Please try again." });
@@ -83,6 +82,16 @@ export default function RegisterPage() {
         try {
             const batch = writeBatch(firestore);
 
+            // 1. Check for phone number uniqueness
+            const phoneIdentifier = `phoneNumber_${contactPhone}`;
+            const uniqueIdRef = doc(firestore, "unique_identifiers", phoneIdentifier);
+            const uniqueIdSnap = await getDoc(uniqueIdRef);
+
+            if (uniqueIdSnap.exists()) {
+                throw new Error("This contact phone number is already in use by another school.");
+            }
+
+            // 2. Create school document
             const schoolData = {
                 id: user.uid,
                 schoolName,
@@ -95,12 +104,16 @@ export default function RegisterPage() {
             const schoolDocRef = doc(firestore, "schools", user.uid);
             batch.set(schoolDocRef, schoolData);
 
+            // 3. Create master classes
             basicClasses.forEach(className => {
                 const classId = doc(collection(firestore, `schools/${user.uid}/masterClasses`)).id;
                 const classRef = doc(firestore, `schools/${user.uid}/masterClasses`, classId);
                 batch.set(classRef, { id: classId, schoolId: user.uid, className });
             });
             
+            // 4. Reserve phone number
+            batch.set(uniqueIdRef, { schoolId: user.uid });
+
             await batch.commit();
             
             toast({
@@ -114,7 +127,7 @@ export default function RegisterPage() {
             toast({
                 variant: "destructive",
                 title: "Registration Failed",
-                description: "An unexpected error occurred. Please try again.",
+                description: error.message || "An unexpected error occurred. Please try again.",
             });
         } finally {
             setIsLoading(false);
@@ -212,3 +225,4 @@ export default function RegisterPage() {
     );
 }
 
+  
