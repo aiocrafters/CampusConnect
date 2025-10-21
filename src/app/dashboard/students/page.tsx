@@ -6,7 +6,8 @@ import {
   PlusCircle,
   Search,
   MoreHorizontal,
-  History
+  History,
+  View
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -100,7 +101,6 @@ export default function StudentsPage() {
   const router = useRouter();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
   const [inactiveReason, setInactiveReason] = useState('');
@@ -158,17 +158,12 @@ export default function StudentsPage() {
   };
   
   const handleView = (student: Student) => {
-    setSelectedStudent(student);
-    setIsViewDialogOpen(true);
+    router.push(`/dashboard/students/${student.id}`);
   };
 
   const handleStatusChange = (student: Student) => {
     setSelectedStudent(student);
     setIsStatusDialogOpen(true);
-  };
-
-  const handleTimeline = (student: Student) => {
-    router.push(`/dashboard/students/${student.id}/timeline`);
   };
 
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
@@ -327,12 +322,11 @@ export default function StudentsPage() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuItem onClick={() => handleEdit(student)}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleView(student)}>View Details</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleTimeline(student)}>
-                                <History className="mr-2 h-4 w-4" />
-                                <span>Timeline</span>
+                              <DropdownMenuItem onClick={() => handleView(student)}>
+                                <View className="mr-2 h-4 w-4" />
+                                View Profile
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleStatusChange(student)}>Change Status</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -568,101 +562,6 @@ export default function StudentsPage() {
               </SheetContent>
             </Sheet>
       
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Student Details</DialogTitle>
-            <DialogDescription>
-              Full information for {selectedStudent?.fullName}.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedStudent && (
-             <ScrollArea className="max-h-[60vh]">
-              <div className="grid gap-4 py-4 px-4 text-sm">
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Student ID</span>
-                  <span>{selectedStudent.id}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Admission No.</span>
-                  <span>{selectedStudent.admissionNumber}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Full Name</span>
-                  <span>{selectedStudent.fullName}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Admission Date</span>
-                  <span>{selectedStudent.admissionDate}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Date of Birth</span>
-                  <span>{selectedStudent.dateOfBirth}</span>
-                </div>
-                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Admission Class</span>
-                  <span>{selectedStudent.admissionClass}</span>
-                </div>
-                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Current Class</span>
-                  <span>{getSectionDetails(selectedStudent.classSectionId).className}</span>
-                </div>
-                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Current Section</span>
-                  <span>{getSectionDetails(selectedStudent.classSectionId).sectionIdentifier}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Father's Name</span>
-                  <span>{selectedStudent.parentGuardianName}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Mother's Name</span>
-                  <span>{selectedStudent.motherName}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Address</span>
-                  <span className="break-words">{selectedStudent.address}</span>
-                </div>
-                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Student PEN</span>
-                  <span>{selectedStudent.pen}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Aadhar Number</span>
-                  <span>{selectedStudent.aadhaarNumber}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Bank Account No.</span>
-                  <span>{selectedStudent.bankAccountNumber}</span>
-                </div>
-                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Bank Name</span>
-                  <span>{selectedStudent.bankName}</span>
-                </div>
-                 <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">IFSC Code</span>
-                  <span>{selectedStudent.ifscCode}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                  <span className="font-semibold text-muted-foreground">Status</span>
-                   <Badge variant={selectedStudent.status === 'Active' ? 'default' : 'secondary'} className={`${selectedStudent.status === 'Active' ? 'bg-green-500' : ''} w-fit`}>
-                      {selectedStudent.status}
-                    </Badge>
-                </div>
-                 {selectedStudent.status === 'Inactive' && selectedStudent.inactiveReason && (
-                  <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                    <span className="font-semibold text-muted-foreground">Reason</span>
-                    <span>{selectedStudent.inactiveReason}</span>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -715,5 +614,3 @@ export default function StudentsPage() {
     </main>
   )
 }
-
-    
