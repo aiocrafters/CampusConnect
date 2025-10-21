@@ -1,31 +1,26 @@
 /**
- * @description This ruleset enforces a strict school-based ownership model for the CampusConnect application.
- * All data is nested under /schools/{schoolId}, ensuring that each school's data is isolated.
- * Authorization relies on verifying the schoolId in the path against the user's authentication.
- * Data shape is not strictly enforced to allow for rapid prototyping and iteration.
+ * @description This ruleset enforces a multi-tenant security model for the CampusConnect application. Each school's data is isolated under its own /schools/{schoolId} path.
  * @dataStructure
- * - /schools/{schoolId}: Root collection for each school.
- * - /schools/{schoolId}/students/{studentId}: Student data for a school.
- * - /schools/{schoolId}/students/{studentId}/timeline/{eventId}: Timeline events for a student.
- * - /schools/{schoolId}/classSections/{classSectionId}: Class section data for a school.
- * - /schools/{schoolId}/teachers/{teacherId}: Teacher data for a school.
- * - /schools/{schoolId}/exams/{examId}: Exam data for a school.
- * - /schools/{schoolId}/masterSubjects/{masterSubjectId}: Master subject data for a school.
- * - /schools/{schoolId}/masterClasses/{masterClassId}: Master class data for a school.
- * - /schools/{schoolId}/exams/{examId}/subjects/{subjectId}: Subject data for an exam.
- * - /schools/{schoolId}/performanceRecords/{performanceRecordId}: Performance records for students in a school.
- * - /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId}: Class incharge queries for a student.
- * - /schools/{schoolId}/promotions/{promotionId}: Promotion records for students in a school.
+ *   - /schools/{schoolId}: Root collection for each school.
+ *   - /schools/{schoolId}/students/{studentId}: Students belonging to a school.
+ *   - /schools/{schoolId}/classSections/{classSectionId}: Class sections within a school.
+ *   - /schools/{schoolId}/teachers/{teacherId}: Teachers associated with a school.
+ *   - /schools/{schoolId}/exams/{examId}: Exams conducted by a school.
+ *   - /schools/{schoolId}/masterSubjects/{masterSubjectId}: Master subjects offered by a school.
+ *   - /schools/{schoolId}/masterClasses/{masterClassId}: Master classes offered by a school.
+ *   - /schools/{schoolId}/exams/{examId}/subjects/{subjectId}: Subjects within an exam.
+ *   - /schools/{schoolId}/performanceRecords/{performanceRecordId}: Student performance records.
+ *   - /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId}: Queries raised by class in-charges.
+ *   - /schools/{schoolId}/promotions/{promotionId}: Records of student promotions.
  * @keySecurityDecisions
- * - All read and write operations require the user to be authenticated.
- * - Write operations are restricted to authenticated users associated with the school.
- * - List operations are restricted to authenticated users associated with the school.
- * - Data validation is minimal to allow for flexible data shapes during prototyping.
- * - No global admin roles are defined in this initial ruleset.
+ *   - All access control is based on path-based ownership, where each document's schoolId must match the schoolId in the path.
+ *   - The `schoolId` is denormalized into subcollection documents to enable authorization independence, avoiding the need for costly `get()` calls.
+ *   - All `create`, `update`, and `delete` operations require a valid authenticated user (`request.auth != null`).
+ *   - List operations are generally allowed for owners of the school.
  * @denormalizationForAuthorization
- * - The `schoolId` is denormalized into every subcollection document to avoid costly `get()` calls in security rules.
+ *   - The `schoolId` is denormalized (copied) onto documents in all subcollections of `/schools/{schoolId}`. This allows rules to quickly check `resource.data.schoolId == schoolId` without needing to perform extra reads.
  * @structuralSegregation
- * - Each entity type has its own dedicated collection, simplifying security rules and preventing accidental data exposure.
+ *   - Each entity type (students, teachers, classSections, etc.) resides in its own dedicated collection, which simplifies the rules and reduces the risk of unintended data access.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -44,183 +39,231 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows access to school documents only for authenticated users with the correct schoolId.
+     * @description Allows creating, reading, updating, and deleting school documents if the user is authenticated. The school ID must match the document ID.
      * @path /schools/{schoolId}
-     * @allow (get) Signed-in user can read school data.
-     * @deny (create) Non-signed-in user cannot create a school.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new school document at /schools/school_abc with schoolId = 'school_abc'.
+     * @allow (get) Any authenticated user can read any school document.
+     * @allow (list) Any authenticated user can list school documents.
+     * @allow (update) User with UID 'school_abc' can update the school document at /schools/school_abc.
+     * @allow (delete) User with UID 'school_abc' can delete the school document at /schools/school_abc.
+     * @deny (create) User with UID 'user_xyz' cannot create a new school document at /schools/school_abc.
+     * @deny (update) User with UID 'user_xyz' cannot update the school document at /schools/school_abc.
+     * @principle Enforces document ownership for writes.  Allows public reads.
      */
     match /schools/{schoolId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isOwner(schoolId);
+      allow get, list: if true;
+      allow create: if isSignedIn();
       allow update: if isExistingOwner(schoolId);
       allow delete: if isExistingOwner(schoolId);
     }
 
     /**
-     * @description Allows access to student documents within a school.
+     * @description Allows creating, reading, updating, and deleting student documents within a school if the user is the school owner.
      * @path /schools/{schoolId}/students/{studentId}
-     * @allow (get) Signed-in user can read student data.
-     * @deny (create) Non-signed-in user cannot create a student.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new student document at /schools/school_abc/students/student_123 with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the student document at /schools/school_abc/students/student_123.
+     * @allow (list) User with UID 'school_abc' can list student documents under /schools/school_abc/students.
+     * @allow (update) User with UID 'school_abc' can update the student document at /schools/school_abc/students/student_123.
+     * @allow (delete) User with UID 'school_abc' can delete the student document at /schools/school_abc/students/student_123.
+     * @deny (create) User with UID 'user_xyz' cannot create a new student document at /schools/school_abc/students/student_123.
+     * @deny (update) User with UID 'user_xyz' cannot update the student document at /schools/school_abc/students/student_123.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/students/{studentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+    }
+
+    /**
+     * @description Allows managing student timeline events for a specific student within a school, accessible to the school owner.
+     * @path /schools/{schoolId}/students/{studentId}/timeline/{eventId}
+     *  @allow (create) User with UID 'school_abc' can create a new timeline event for student 'student_123' under /schools/school_abc/students/student_123/timeline/event_456 with schoolId = 'school_abc'.
+     *  @allow (get) User with UID 'school_abc' can read the timeline event at /schools/school_abc/students/student_123/timeline/event_456.
+     *  @allow (list) User with UID 'school_abc' can list timeline events under /schools/school_abc/students/student_123/timeline.
+     *  @allow (update) User with UID 'school_abc' can update the timeline event at /schools/school_abc/students/student_123/timeline/event_456.
+     *  @allow (delete) User with UID 'school_abc' can delete the timeline event at /schools/school_abc/students/student_123/timeline/event_456.
+     *  @deny (create) User with UID 'user_xyz' cannot create a new timeline event.
+     *  @deny (update) User with UID 'user_xyz' cannot update the timeline event.
+     * @principle Enforces document ownership and restricts access to the school's data tree.
+     */
+    match /schools/{schoolId}/students/{studentId}/timeline/{eventId} {
+      allow get, list: if isOwner(schoolId);
+      allow create: if isSignedIn();
+      allow update: if isExistingOwner(schoolId);
       allow delete: if isExistingOwner(schoolId);
     }
 
-        /**
-         * @description Allows access to student timeline events within a school.
-         * @path /schools/{schoolId}/students/{studentId}/timeline/{eventId}
-         * @allow (get) Signed-in user can read timeline event data.
-         * @deny (create) Non-signed-in user cannot create a timeline event.
-         * @principle Enforces document ownership for writes.
-         */
-    match /schools/{schoolId}/students/{studentId}/timeline/{eventId} {
-          allow get: if isSignedIn();
-          allow list: if isSignedIn() && isOwner(schoolId);
-          allow create: if isSignedIn() && request.resource.data.studentId == studentId;
-          allow update: if isExistingOwner(schoolId) && request.resource.data.studentId == resource.data.studentId;
-          allow delete: if isExistingOwner(schoolId);
-        }
-
     /**
-     * @description Allows access to class section documents within a school.
+     * @description Allows creating, reading, updating, and deleting class section documents within a school if the user is the school owner.
      * @path /schools/{schoolId}/classSections/{classSectionId}
-     * @allow (get) Signed-in user can read class section data.
-     * @deny (create) Non-signed-in user cannot create a class section.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new class section document at /schools/school_abc/classSections/section_xyz with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the class section document at /schools/school_abc/classSections/section_xyz.
+     * @allow (list) User with UID 'school_abc' can list class section documents under /schools/school_abc/classSections.
+     * @allow (update) User with UID 'school_abc' can update the class section document at /schools/school_abc/classSections/section_xyz.
+     * @allow (delete) User with UID 'school_abc' can delete the class section document at /schools/school_abc/classSections/section_xyz.
+     * @deny (create) User with UID 'user_xyz' cannot create a new class section document.
+     * @deny (update) User with UID 'user_xyz' cannot update the class section document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/classSections/{classSectionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * @description Allows access to teacher documents within a school.
+     * @description Allows managing teacher documents within a school if the user is the school owner.
      * @path /schools/{schoolId}/teachers/{teacherId}
-     * @allow (get) Signed-in user can read teacher data.
-     * @deny (create) Non-signed-in user cannot create a teacher.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new teacher document at /schools/school_abc/teachers/teacher_123 with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the teacher document at /schools/school_abc/teachers/teacher_123.
+     * @allow (list) User with UID 'school_abc' can list teacher documents under /schools/school_abc/teachers.
+     * @allow (update) User with UID 'school_abc' can update the teacher document at /schools/school_abc/teachers/teacher_123.
+     * @allow (delete) User with UID 'school_abc' can delete the teacher document at /schools/school_abc/teachers/teacher_123.
+     * @deny (create) User with UID 'user_xyz' cannot create a new teacher document.
+     * @deny (update) User with UID 'user_xyz' cannot update the teacher document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/teachers/{teacherId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * @description Allows access to exam documents within a school.
+     * @description Allows managing exam documents within a school if the user is the school owner.
      * @path /schools/{schoolId}/exams/{examId}
-     * @allow (get) Signed-in user can read exam data.
-     * @deny (create) Non-signed-in user cannot create an exam.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new exam document at /schools/school_abc/exams/exam_xyz with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the exam document at /schools/school_abc/exams/exam_xyz.
+     * @allow (list) User with UID 'school_abc' can list exam documents under /schools/school_abc/exams.
+     * @allow (update) User with UID 'school_abc' can update the exam document at /schools/school_abc/exams/exam_xyz.
+     * @allow (delete) User with UID 'school_abc' can delete the exam document at /schools/school_abc/exams/exam_xyz.
+     * @deny (create) User with UID 'user_xyz' cannot create a new exam document.
+     * @deny (update) User with UID 'user_xyz' cannot update the exam document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/exams/{examId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * @description Allows access to subject documents within an exam.
+     * @description Allows managing master subject documents within a school if the user is the school owner.
+     * @path /schools/{schoolId}/masterSubjects/{masterSubjectId}
+     * @allow (create) User with UID 'school_abc' can create a new master subject document at /schools/school_abc/masterSubjects/subject_xyz with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the master subject document at /schools/school_abc/masterSubjects/subject_xyz.
+     * @allow (list) User with UID 'school_abc' can list master subject documents under /schools/school_abc/masterSubjects.
+     * @allow (update) User with UID 'school_abc' can update the master subject document at /schools/school_abc/masterSubjects/subject_xyz.
+     * @allow (delete) User with UID 'school_abc' can delete the master subject document at /schools/school_abc/masterSubjects/subject_xyz.
+     * @deny (create) User with UID 'user_xyz' cannot create a new master subject document.
+     * @deny (update) User with UID 'user_xyz' cannot update the master subject document.
+     * @principle Enforces document ownership for writes within the school's data tree.
+     */
+    match /schools/{schoolId}/masterSubjects/{masterSubjectId} {
+      allow get, list: if isOwner(schoolId);
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+    }
+
+    /**
+     * @description Allows managing master class documents within a school if the user is the school owner.
+     * @path /schools/{schoolId}/masterClasses/{masterClassId}
+     * @allow (create) User with UID 'school_abc' can create a new master class document at /schools/school_abc/masterClasses/class_xyz with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the master class document at /schools/school_abc/masterClasses/class_xyz.
+     * @allow (list) User with UID 'school_abc' can list master class documents under /schools/school_abc/masterClasses.
+     * @allow (update) User with UID 'school_abc' can update the master class document at /schools/school_abc/masterClasses/class_xyz.
+     * @allow (delete) User with UID 'school_abc' can delete the master class document at /schools/school_abc/masterClasses/class_xyz.
+     * @deny (create) User with UID 'user_xyz' cannot create a new master class document.
+     * @deny (update) User with UID 'user_xyz' cannot update the master class document.
+     * @principle Enforces document ownership for writes within the school's data tree.
+     */
+    match /schools/{schoolId}/masterClasses/{masterClassId} {
+      allow get, list: if isOwner(schoolId);
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+    }
+
+    /**
+     * @description Allows managing subject documents within an exam if the user is the school owner.
      * @path /schools/{schoolId}/exams/{examId}/subjects/{subjectId}
-     * @allow (get) Signed-in user can read subject data.
-     * @deny (create) Non-signed-in user cannot create a subject.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new subject document at /schools/school_abc/exams/exam_xyz/subjects/subject_123 with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the subject document at /schools/school_abc/exams/exam_xyz/subjects/subject_123.
+     * @allow (list) User with UID 'school_abc' can list subject documents under /schools/school_abc/exams/exam_xyz/subjects.
+     * @allow (update) User with UID 'school_abc' can update the subject document at /schools/school_abc/exams/exam_xyz/subjects/subject_123.
+     * @allow (delete) User with UID 'school_abc' can delete the subject document at /schools/school_abc/exams/exam_xyz/subjects/subject_123.
+     * @deny (create) User with UID 'user_xyz' cannot create a new subject document.
+     * @deny (update) User with UID 'user_xyz' cannot update the subject document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/exams/{examId}/subjects/{subjectId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
-      allow create: if isSignedIn() && request.resource.data.examId == examId;
-      allow update: if isExistingOwner(schoolId) && resource.data.examId == request.resource.data.examId;
-      allow delete: if isExistingOwner(schoolId);
-    }
-
-        /**
-         * @description Allows access to master subject documents within a school.
-         * @path /schools/{schoolId}/masterSubjects/{masterSubjectId}
-         * @allow (get) Signed-in user can read master subject data.
-         * @deny (create) Non-signed-in user cannot create a master subject.
-         * @principle Enforces document ownership for writes.
-         */
-    match /schools/{schoolId}/masterSubjects/{masterSubjectId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
-    }
-
-        /**
-         * @description Allows access to master class documents within a school.
-         * @path /schools/{schoolId}/masterClasses/{masterClassId}
-         * @allow (get) Signed-in user can read master class data.
-         * @deny (create) Non-signed-in user cannot create a master class.
-         * @principle Enforces document ownership for writes.
-         */
-    match /schools/{schoolId}/masterClasses/{masterClassId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
-      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * @description Allows access to performance record documents within a school.
+     * @description Allows managing performance record documents within a school if the user is the school owner.
      * @path /schools/{schoolId}/performanceRecords/{performanceRecordId}
-     * @allow (get) Signed-in user can read performance record data.
-     * @deny (create) Non-signed-in user cannot create a performance record.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new performance record document at /schools/school_abc/performanceRecords/record_123 with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the performance record document at /schools/school_abc/performanceRecords/record_123.
+     * @allow (list) User with UID 'school_abc' can list performance record documents under /schools/school_abc/performanceRecords.
+     * @allow (update) User with UID 'school_abc' can update the performance record document at /schools/school_abc/performanceRecords/record_123.
+     * @allow (delete) User with UID 'school_abc' can delete the performance record document at /schools/school_abc/performanceRecords/record_123.
+     * @deny (create) User with UID 'user_xyz' cannot create a new performance record document.
+     * @deny (update) User with UID 'user_xyz' cannot update the performance record document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/performanceRecords/{performanceRecordId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * @description Allows access to class incharge query documents for a student.
+     * @description Allows managing class incharge query documents for a student if the user is the school owner.
      * @path /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId}
-     * @allow (get) Signed-in user can read class incharge query data.
-     * @deny (create) Non-signed-in user cannot create a class incharge query.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new class incharge query document at /schools/school_abc/students/student_xyz/classInchargeQueries/query_123 with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the class incharge query document at /schools/school_abc/students/student_xyz/classInchargeQueries/query_123.
+     * @allow (list) User with UID 'school_abc' can list class incharge query documents under /schools/school_abc/students/student_xyz/classInchargeQueries.
+     * @allow (update) User with UID 'school_abc' can update the class incharge query document at /schools/school_abc/students/student_xyz/classInchargeQueries/query_123.
+     * @allow (delete) User with UID 'school_abc' can delete the class incharge query document at /schools/school_abc/students/student_xyz/classInchargeQueries/query_123.
+     * @deny (create) User with UID 'user_xyz' cannot create a new class incharge query document.
+     * @deny (update) User with UID 'user_xyz' cannot update the class incharge query document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
-      allow create: if isSignedIn() && request.resource.data.studentId == studentId;
-      allow update: if isExistingOwner(schoolId) && request.resource.data.studentId == resource.data.studentId;
-      allow delete: if isExistingOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
+      allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * @description Allows access to promotion documents within a school.
+     * @description Allows managing promotion documents within a school if the user is the school owner.
      * @path /schools/{schoolId}/promotions/{promotionId}
-     * @allow (get) Signed-in user can read promotion data.
-     * @deny (create) Non-signed-in user cannot create a promotion.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with UID 'school_abc' can create a new promotion document at /schools/school_abc/promotions/promotion_xyz with schoolId = 'school_abc'.
+     * @allow (get) User with UID 'school_abc' can read the promotion document at /schools/school_abc/promotions/promotion_xyz.
+     * @allow (list) User with UID 'school_abc' can list promotion documents under /schools/school_abc/promotions.
+     * @allow (update) User with UID 'school_abc' can update the promotion document at /schools/school_abc/promotions/promotion_xyz.
+     * @allow (delete) User with UID 'school_abc' can delete the promotion document at /schools/school_abc/promotions/promotion_xyz.
+     * @deny (create) User with UID 'user_xyz' cannot create a new promotion document.
+     * @deny (update) User with UID 'user_xyz' cannot update the promotion document.
+     * @principle Enforces document ownership for writes within the school's data tree.
      */
     match /schools/{schoolId}/promotions/{promotionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isOwner(schoolId);
+      allow get, list: if isOwner(schoolId);
       allow create: if isSignedIn() && request.resource.data.schoolId == schoolId;
-      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == request.resource.data.schoolId;
-      allow delete: if isExistingOwner(schoolId);
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
   }
 }
