@@ -33,7 +33,7 @@ import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns"
-import { errorEmitter, FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter, FirestorePermissionError } from "@/firebase";
 
 
 export default function Dashboard() {
@@ -345,3 +345,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    
