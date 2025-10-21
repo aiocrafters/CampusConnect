@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs, writeBatch, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Student, Exam, Subject, ClassSection, PerformanceRecord } from '@/lib/types';
+import type { Student, Exam, Subject, ClassSection, PerformanceRecord, StudentTimelineEvent } from '@/lib/types';
 import { Save } from 'lucide-react';
 import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
@@ -122,8 +122,8 @@ export default function AwardSheetPage() {
   }, [students, selectedSubject, replace, firestore, schoolId]);
 
 
-  const handleSaveMarks = (studentIndex: number) => {
-    if (!firestore || !schoolId || !selectedSubject) {
+  const handleSaveMarks = async (studentIndex: number) => {
+    if (!firestore || !schoolId || !selectedSubject || !selectedExam) {
       toast({ variant: 'destructive', title: 'Error', description: 'Cannot save marks.' });
       return;
     }
@@ -132,6 +132,9 @@ export default function AwardSheetPage() {
     const student = students?.find(s => s.id === markEntry.studentId);
 
     if (markEntry.marks !== undefined && markEntry.marks !== null) {
+        const batch = writeBatch(firestore);
+
+        // 1. Save Performance Record
         const recordId = `${markEntry.studentId}_${selectedSubject.id}_${selectedSubject.examId}`;
         const recordRef = doc(firestore, `schools/${schoolId}/performanceRecords`, recordId);
         
@@ -142,9 +145,32 @@ export default function AwardSheetPage() {
             schoolId: schoolId,
             examId: selectedSubject.examId,
             marks: markEntry.marks,
-            remarks: '', // remarks can be added later
+            remarks: '',
         };
-        setDocumentNonBlocking(recordRef, performanceRecord, { merge: true });
+        batch.set(recordRef, performanceRecord, { merge: true });
+
+        // 2. Check if timeline event for this exam already exists
+        const timelineRef = collection(firestore, `schools/${schoolId}/students/${markEntry.studentId}/timeline`);
+        const timelineQuery = query(timelineRef, 
+            where('type', '==', 'EXAM_RESULT'), 
+            where('details.examId', '==', selectedExam.id),
+            limit(1)
+        );
+
+        const existingTimelineEvents = await getDocs(timelineQuery);
+        if (existingTimelineEvents.empty) {
+             const timelineEventRef = doc(timelineRef);
+             const timelineEvent: Omit<StudentTimelineEvent, 'id'> = {
+                studentId: markEntry.studentId,
+                timestamp: new Date().toISOString(),
+                type: 'EXAM_RESULT',
+                description: `Results for ${selectedExam.examName} ${selectedExam.year} were published.`,
+                details: { examId: selectedExam.id }
+            };
+            batch.set(timelineEventRef, timelineEvent);
+        }
+
+        await batch.commit();
         
         toast({
             title: 'Marks Saved!',
@@ -288,3 +314,5 @@ export default function AwardSheetPage() {
     </main>
   );
 }
+
+    

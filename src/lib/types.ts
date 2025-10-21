@@ -89,12 +89,13 @@ export interface StudentTimelineEvent {
     id: string;
     studentId: string;
     timestamp: string;
-    type: 'ADMISSION' | 'PROMOTION';
+    type: 'ADMISSION' | 'PROMOTION' | 'EXAM_RESULT';
     description: string;
     details: {
         class?: string;
         section?: string;
         academicYear?: string;
+        examId?: string;
     };
 }
 
@@ -123,3 +124,4 @@ export interface PerformanceRecord {
 
     
 
+    
