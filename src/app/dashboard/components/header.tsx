@@ -30,6 +30,7 @@ const navItems = [
   { href: "/dashboard/add-student", icon: PlusCircle, label: "Add Student" },
   { href: "/dashboard/students", icon: Users, label: "Students" },
   { href: "/dashboard/teachers", icon: BookUser, label: "Teachers" },
+  { href: "/dashboard/staff-management", icon: BookUser, label: "Staff" },
   { href: "/dashboard/classes", icon: SchoolIcon, label: "Classes" },
   { href: "/dashboard/sections", icon: Users, label: "Sections" },
   { href: "/dashboard/subjects", icon: BookOpenCheck, label: "Subjects" },
