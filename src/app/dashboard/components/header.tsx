@@ -13,6 +13,7 @@ import {
   FileText,
   Menu,
   PlusCircle,
+  Award,
 } from "lucide-react"
 
 import {
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/dashboard/sections", icon: Users, label: "Sections" },
   { href: "/dashboard/subjects", icon: BookOpenCheck, label: "Subjects" },
   { href: "/dashboard/exams", icon: ClipboardList, label: "Exams" },
+  { href: "/dashboard/award-sheet", icon: Award, label: "Award Sheet" },
   { href: "/dashboard/reports", icon: FileText, label: "Reports" },
 ];
 

@@ -106,6 +106,16 @@ export interface Promotion {
     studentIds: string[];
     promotionDate: string;
 }
+
+export interface PerformanceRecord {
+  id: string;
+  studentId: string;
+  subjectId: string;
+  examId: string;
+  schoolId: string;
+  marks: number;
+  remarks?: string;
+}
     
 
     
