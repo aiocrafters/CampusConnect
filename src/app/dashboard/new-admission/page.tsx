@@ -223,7 +223,7 @@ export default function NewAdmissionPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-              <ScrollArea className="h-[calc(100vh-25rem)]">
+              <ScrollArea className="h-[calc(100vh-20rem)]">
                 <div className="grid md:grid-cols-2 gap-6 p-4">
                   <FormField
                     control={form.control}
@@ -489,5 +489,3 @@ export default function NewAdmissionPage() {
   )
 }
 
-
-    
