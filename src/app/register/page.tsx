@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { BookOpenCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase } from "@/firebase";
+import { useFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { collection, query, where, getDocs, setDoc, doc, writeBatch } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
@@ -70,9 +70,7 @@ export default function RegisterPage() {
             // --- Create school and master classes in a batch ---
             const batch = writeBatch(firestore);
 
-            // Create school document
-            const schoolDocRef = doc(firestore, "schools", user.uid);
-            batch.set(schoolDocRef, {
+            const schoolData = {
                 id: user.uid,
                 schoolName,
                 udiseCode,
@@ -80,7 +78,11 @@ export default function RegisterPage() {
                 contactEmail,
                 contactPhoneNumber: contactPhone,
                 adminName,
-            });
+            };
+
+            // Create school document
+            const schoolDocRef = doc(firestore, "schools", user.uid);
+            batch.set(schoolDocRef, schoolData);
 
             // Create master classes
             basicClasses.forEach(className => {
@@ -103,19 +105,27 @@ export default function RegisterPage() {
             router.push('/login');
 
         } catch (error: any) {
-            console.error("Registration Error: ", error);
-            let errorMessage = "An unexpected error occurred. Please try again.";
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = "This email is already registered. Please log in or use a different email.";
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = "The password is too weak. Please use a stronger password.";
+             if (error.code === 'permission-denied' || error.name === 'FirebaseError') {
+                const permissionError = new FirestorePermissionError({
+                    path: 'schools',
+                    operation: 'list', 
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                console.error("Registration Error: ", error);
+                let errorMessage = "An unexpected error occurred. Please try again.";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = "This email is already registered. Please log in or use a different email.";
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = "The password is too weak. Please use a stronger password.";
+                }
+                
+                toast({
+                    variant: "destructive",
+                    title: "Registration Failed",
+                    description: errorMessage,
+                });
             }
-            
-            toast({
-                variant: "destructive",
-                title: "Registration Failed",
-                description: errorMessage,
-            });
         } finally {
             setIsLoading(false);
         }
