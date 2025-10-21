@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -409,7 +408,7 @@ export default function DepartmentsPage() {
                                       <FormControl>
                                         <SelectTrigger disabled={!!parentForNewSubDept}>
                                           <SelectValue placeholder="Select a parent department" />
-                                        </Trigger>
+                                        </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
                                         <SelectItem value="none">None (Top-Level Department)</SelectItem>
