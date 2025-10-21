@@ -7,7 +7,7 @@ import { doc, collection, query, orderBy, where, getDoc, getDocs } from "firebas
 import { useParams } from "next/navigation";
 import { format } from "date-fns";
 import type { Student, StudentTimelineEvent, Exam, Subject, PerformanceRecord } from "@/lib/types";
-import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home } from "lucide-react";
+import { ScrollText, ClipboardCheck, User, Mail, Phone, Calendar, Hash, Home, GraduationCap } from "lucide-react";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -97,8 +97,9 @@ export default function StudentDetailPage() {
     const renderIcon = (type: StudentTimelineEvent['type']) => {
         switch (type) {
             case 'ADMISSION':
-            case 'PROMOTION':
                 return <ScrollText className="w-5 h-5 text-primary" />;
+            case 'PROMOTION':
+                return <GraduationCap className="w-5 h-5 text-green-500" />;
             case 'EXAM_RESULT':
                  return <ClipboardCheck className="w-5 h-5 text-blue-500" />;
             default:
@@ -160,6 +161,10 @@ export default function StudentDetailPage() {
                         <div className="flex items-center gap-3">
                             <Hash className="w-4 h-4 text-muted-foreground" />
                             <span><strong>Admission Class:</strong> {student.admissionClass}</span>
+                        </div>
+                         <div className="flex items-center gap-3">
+                            <GraduationCap className="w-4 h-4 text-muted-foreground" />
+                            <span><strong>Current Class:</strong> {student.currentClass}</span>
                         </div>
                         <div className="flex items-center gap-3">
                             <User className="w-4 h-4 text-muted-foreground" />

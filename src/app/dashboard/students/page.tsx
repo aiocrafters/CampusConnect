@@ -91,6 +91,7 @@ const studentFormSchema = z.object({
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
   admissionClass: z.string().min(1, "Admission Class is required"),
+  currentClass: z.string().min(1, "Current Class is required"),
 });
 
 
@@ -301,7 +302,7 @@ export default function StudentsPage() {
                         <TableCell>{student.admissionDate}</TableCell>
                         <TableCell>{student.dateOfBirth}</TableCell>
                         <TableCell>{student.admissionClass}</TableCell>
-                        <TableCell>{className}</TableCell>
+                        <TableCell>{student.currentClass || className}</TableCell>
                         <TableCell>{sectionIdentifier}</TableCell>
                         <TableCell>{student.parentGuardianName}</TableCell>
                         <TableCell>{student.motherName}</TableCell>
@@ -545,6 +546,30 @@ export default function StudentsPage() {
                                 </SelectContent>
                               </Select>
                               <FormDescription>The admission class cannot be changed.</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="currentClass"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Current Class</FormLabel>
+                               <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a current class" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {classOptions.map((className) => (
+                                        <SelectItem key={className} value={className}>
+                                            Class {className}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </FormItem>
                           )}

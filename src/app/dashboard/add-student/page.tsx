@@ -46,6 +46,7 @@ const studentFormSchema = z.object({
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
   admissionClass: z.string().min(1, "Admission Class is required"),
+  currentClass: z.string().min(1, "Current Class is required"),
 });
 
 export default function AddStudentPage() {
@@ -84,6 +85,7 @@ export default function AddStudentPage() {
       bankName: "",
       ifscCode: "",
       admissionClass: "",
+      currentClass: "",
     },
   });
 
@@ -105,6 +107,7 @@ export default function AddStudentPage() {
       bankName: "",
       ifscCode: "",
       admissionClass: "",
+      currentClass: "",
     });
   }
 
@@ -163,10 +166,10 @@ export default function AddStudentPage() {
           return;
       }
       
-      const targetSection = classSections.find(s => s.className === student.admissionClass && s.sectionIdentifier === 'A');
+      const targetSection = classSections.find(s => s.className === student.currentClass && s.sectionIdentifier === 'A');
 
       if (!targetSection) {
-          toast({ variant: "destructive", title: "Section Not Found", description: `Default section 'A' for class ${student.admissionClass} does not exist. Please create it on the Sections page first.` });
+          toast({ variant: "destructive", title: "Section Not Found", description: `Default section 'A' for class ${student.currentClass} does not exist. Please create it on the Sections page first.` });
           return;
       }
 
@@ -175,7 +178,7 @@ export default function AddStudentPage() {
 
       toast({
           title: "Student Assigned",
-          description: `${student.fullName} has been assigned to Class ${student.admissionClass} - Section A.`,
+          description: `${student.fullName} has been assigned to Class ${student.currentClass} - Section A.`,
       });
   };
   
@@ -390,6 +393,30 @@ export default function AddStudentPage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="currentClass"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Class</FormLabel>
+                       <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a current class" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {classOptions.map((className) => (
+                                <SelectItem key={className} value={className}>
+                                    Class {className}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <div className="flex justify-end gap-2 pt-6">
                 <Button variant="outline" type="button" onClick={() => router.push('/dashboard/students')}>Cancel</Button>
@@ -411,7 +438,7 @@ export default function AddStudentPage() {
                     <TableRow>
                         <TableHead>Admission No.</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead>Admission Class</TableHead>
+                        <TableHead>Current Class</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -425,7 +452,7 @@ export default function AddStudentPage() {
                         <TableRow key={student.id}>
                             <TableCell>{student.admissionNumber}</TableCell>
                             <TableCell>{student.fullName}</TableCell>
-                            <TableCell>{student.admissionClass}</TableCell>
+                            <TableCell>{student.currentClass}</TableCell>
                             <TableCell className="text-right">
                                 {!student.classSectionId ? (
                                      <Button size="sm" onClick={() => handleAssignToSection(student)}>
