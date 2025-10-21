@@ -48,22 +48,7 @@ export default function RegisterPage() {
         }
 
         try {
-            // Check for existing school with the same UDISE code
-            const schoolsRef = collection(firestore, "schools");
-            const q = query(schoolsRef, where("udiseCode", "==", udiseCode));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                toast({
-                    variant: "destructive",
-                    title: "Registration Failed",
-                    description: "A school with this UDISE code already exists.",
-                });
-                setIsLoading(false);
-                return;
-            }
-
-            // Create user
+            // Create user first. If email is taken, this will fail.
             const userCredential = await createUserWithEmailAndPassword(auth, contactEmail, password);
             const user = userCredential.user;
 
@@ -80,7 +65,7 @@ export default function RegisterPage() {
                 adminName,
             };
 
-            // Create school document
+            // Create school document with the user's UID as the document ID
             const schoolDocRef = doc(firestore, "schools", user.uid);
             batch.set(schoolDocRef, schoolData);
 
@@ -102,13 +87,13 @@ export default function RegisterPage() {
                 title: "Registration Successful",
                 description: "Your school account has been created. Please log in.",
             });
-            router.push('/login');
+            router.push('/login?role=school');
 
         } catch (error: any) {
              if (error.code === 'permission-denied' || error.name === 'FirebaseError') {
                 const permissionError = new FirestorePermissionError({
                     path: 'schools',
-                    operation: 'list', 
+                    operation: 'create', 
                 });
                 errorEmitter.emit('permission-error', permissionError);
             } else {
