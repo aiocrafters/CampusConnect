@@ -17,16 +17,24 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, limit, orderBy } from "firebase/firestore"
-import { Users, BookUser, School, ClipboardCheck } from "lucide-react"
+import { collection, query, limit, orderBy, where } from "firebase/firestore"
+import { Users, BookUser, School, ClipboardCheck, ClipboardList } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import type { Student, Teacher, ClassSection } from "@/lib/types";
+import type { Student, Teacher, ClassSection, Exam } from "@/lib/types";
+import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 
 export default function Dashboard() {
   const { user, isUserLoading, firestore } = useFirebase();
+  const router = useRouter();
 
   const schoolId = user?.uid;
+
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
 
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -48,10 +56,21 @@ export default function Dashboard() {
     return collection(firestore, `schools/${schoolId}/classSections`);
   }, [firestore, schoolId]);
 
+  const examsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId || !selectedClass) return null;
+    return query(
+      collection(firestore, `schools/${schoolId}/exams`),
+      where("year", "==", selectedYear),
+      where("className", "==", selectedClass)
+    );
+  }, [firestore, schoolId, selectedYear, selectedClass]);
+
+
   const { data: recentStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
   const { data: allStudents, isLoading: allStudentsLoading } = useCollection<Student>(allStudentsQuery);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
   const { data: allClassSections, isLoading: classesLoading } = useCollection<ClassSection>(classesQuery);
+  const { data: exams, isLoading: examsLoading } = useCollection<Exam>(examsQuery);
   
   // For now, pending queries are hardcoded as it requires more complex logic
   const pendingQueries = 0;
@@ -60,13 +79,16 @@ export default function Dashboard() {
     { title: "Total Students", value: allStudents?.length ?? 0, icon: Users, isLoading: allStudentsLoading },
     { title: "Total Teachers", value: teachers?.length ?? 0, icon: BookUser, isLoading: teachersLoading },
     { title: "Class Rooms / Sections", value: allClassSections?.length ?? 0, icon: School, isLoading: classesLoading },
-    { title: "Pending Queries", value: pendingQueries, icon: ClipboardCheck, isLoading: false },
+    { title: "Exams Conducted", value: exams?.length ?? 0, icon: ClipboardList, isLoading: examsLoading && !!selectedClass},
   ]
   
   const getTeacherName = (teacherId?: string) => {
     if (!teachers || !teacherId) return "Not Assigned";
     return teachers.find(t => t.id === teacherId)?.name || "Not Assigned";
   };
+  
+  const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
+  const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
 
   if (isUserLoading) {
@@ -174,6 +196,79 @@ export default function Dashboard() {
             </CardContent>
         </Card>
       </div>
+
+       <div className="grid gap-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Exams Overview</CardTitle>
+            <CardDescription>
+              Filter exams by year and class to see details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select onValueChange={(value) => setSelectedYear(Number(value))} defaultValue={selectedYear.toString()}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={setSelectedClass} value={selectedClass || ''}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Select Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classOptions.map(c => (
+                    <SelectItem key={c} value={c}>Class {c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Exam Name</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {examsLoading && (
+                    <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>
+                  )}
+                  {!examsLoading && !selectedClass && (
+                    <TableRow><TableCell colSpan={4} className="text-center">Please select a class to view exams.</TableCell></TableRow>
+                  )}
+                  {!examsLoading && selectedClass && exams && exams.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center">No exams found for the selected criteria.</TableCell></TableRow>
+                  )}
+                  {!examsLoading && exams && exams.map(exam => (
+                    <TableRow key={exam.id}>
+                      <TableCell className="font-medium">{exam.examName}</TableCell>
+                      <TableCell>{exam.className}</TableCell>
+                      <TableCell>{exam.year}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/exams')}>
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
+
+    
