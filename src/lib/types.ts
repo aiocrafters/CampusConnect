@@ -131,6 +131,7 @@ export interface Department {
   id: string;
   schoolId: string;
   name: string;
+  parentId?: string;
 }
     
 

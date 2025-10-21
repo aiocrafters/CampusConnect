@@ -34,10 +34,13 @@ import {
 } from "@/components/ui/sheet"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import type { Department } from "@/lib/types"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const departmentFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Department name must be at least 2 characters."),
+  parentId: z.string().optional(),
 });
 
 export default function DepartmentsPage() {
@@ -49,6 +52,7 @@ export default function DepartmentsPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [parentForNewSubDept, setParentForNewSubDept] = useState<Department | null>(null);
 
   // Data fetching
   const departmentsQuery = useMemoFirebase(() => {
@@ -59,20 +63,41 @@ export default function DepartmentsPage() {
 
   const form = useForm<z.infer<typeof departmentFormSchema>>({
     resolver: zodResolver(departmentFormSchema),
-    defaultValues: { name: "" },
+    defaultValues: { name: "", parentId: "" },
   });
 
-  const handleAdd = () => {
+  const { topLevelDepartments, subDepartmentsMap } = useMemo(() => {
+    if (!departments) return { topLevelDepartments: [], subDepartmentsMap: new Map() };
+    const topLevel: Department[] = [];
+    const subMap = new Map<string, Department[]>();
+
+    departments.forEach(dept => {
+      if (dept.parentId) {
+        const children = subMap.get(dept.parentId) || [];
+        children.push(dept);
+        subMap.set(dept.parentId, children);
+      } else {
+        topLevel.push(dept);
+      }
+    });
+
+    return { topLevelDepartments: topLevel, subDepartmentsMap: subMap };
+  }, [departments]);
+
+
+  const handleAdd = (parent: Department | null = null) => {
     setIsEditMode(false);
     setSelectedDepartment(null);
-    form.reset({ name: "" });
+    setParentForNewSubDept(parent);
+    form.reset({ name: "", parentId: parent?.id || "" });
     setIsSheetOpen(true);
   };
 
   const handleEdit = (department: Department) => {
     setIsEditMode(true);
     setSelectedDepartment(department);
-    form.reset({ id: department.id, name: department.name });
+    setParentForNewSubDept(null);
+    form.reset({ id: department.id, name: department.name, parentId: department.parentId || "" });
     setIsSheetOpen(true);
   };
 
@@ -83,27 +108,43 @@ export default function DepartmentsPage() {
 
   const onDepartmentSubmit = (values: z.infer<typeof departmentFormSchema>) => {
     if (!firestore || !schoolId) return;
+    
+    const dataToSave: Partial<Department> = {
+        name: values.name,
+        parentId: values.parentId || undefined,
+    };
 
     if (isEditMode && selectedDepartment) {
       const departmentDocRef = doc(firestore, `schools/${schoolId}/departments`, selectedDepartment.id);
-      updateDocumentNonBlocking(departmentDocRef, { name: values.name });
+      updateDocumentNonBlocking(departmentDocRef, dataToSave);
       toast({ title: "Department Updated", description: "The department has been successfully updated." });
     } else {
       const departmentId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
       const departmentDocRef = doc(firestore, `schools/${schoolId}/departments`, departmentId);
-      const data: Department = {
+      const newDept: Department = {
         id: departmentId,
         schoolId,
         name: values.name,
+        parentId: values.parentId || undefined,
       };
-      setDocumentNonBlocking(departmentDocRef, data, { merge: false });
+      setDocumentNonBlocking(departmentDocRef, newDept, { merge: false });
       toast({ title: "Department Added", description: "The new department has been added." });
     }
     setIsSheetOpen(false);
+    setParentForNewSubDept(null);
   };
 
   const confirmDelete = () => {
     if (!firestore || !schoolId || !selectedDepartment) return;
+
+    // Also delete sub-departments
+    const subDepts = subDepartmentsMap.get(selectedDepartment.id) || [];
+    if (subDepts.length > 0) {
+        toast({ variant: "destructive", title: "Deletion Failed", description: "Cannot delete a department that has sub-departments. Please delete them first."});
+        setIsDeleteDialogOpen(false);
+        return;
+    }
+
     const departmentDocRef = doc(firestore, `schools/${schoolId}/departments`, selectedDepartment.id);
     deleteDocumentNonBlocking(departmentDocRef);
     toast({ variant: "destructive", title: "Department Deleted" });
@@ -118,12 +159,12 @@ export default function DepartmentsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Departments</CardTitle>
+            <CardTitle>Departments & Offices</CardTitle>
             <CardDescription>
-              Manage the departments available in your school.
+              Manage departments and their sub-departments or offices.
             </CardDescription>
           </div>
-          <Button size="sm" className="h-8 gap-1" onClick={handleAdd}>
+          <Button size="sm" className="h-8 gap-1" onClick={() => handleAdd(null)}>
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
               Add Department
@@ -131,52 +172,71 @@ export default function DepartmentsPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Department Name</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center">
-                    Loading departments...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!isLoading && departments?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center">
+            {isLoading && <p className="text-center">Loading departments...</p>}
+            {!isLoading && departments?.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
                     No departments found. Add one to get started.
-                  </TableCell>
-                </TableRow>
-              )}
-              {!isLoading && departments?.map(department => (
-                <TableRow key={department.id}>
-                  <TableCell className="font-medium">{department.name}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(department)}>
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(department)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </div>
+            )}
+            {!isLoading && topLevelDepartments.length > 0 && (
+                 <Accordion type="multiple" className="w-full">
+                    {topLevelDepartments.map(dept => {
+                         const children = subDepartmentsMap.get(dept.id) || [];
+                         return (
+                            <AccordionItem value={dept.id} key={dept.id}>
+                                <div className="flex items-center w-full border-b">
+                                    <AccordionTrigger className="flex-1 text-lg font-medium pr-2">
+                                        {dept.name}
+                                    </AccordionTrigger>
+                                    <div className="ml-auto pr-4 flex items-center gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => handleAdd(dept)}>
+                                            <PlusCircle className="h-4 w-4 mr-2" /> Add Sub-dept
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(dept)}><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(dept)}><Trash2 className="h-4 w-4" /></Button>
+                                    </div>
+                                </div>
+                                <AccordionContent>
+                                    {children.length > 0 ? (
+                                        <div className="pl-6 pt-2">
+                                            <Table>
+                                                 <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Sub-Department / Office</TableHead>
+                                                        <TableHead className="text-right">Actions</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                {children.map(child => (
+                                                    <TableRow key={child.id}>
+                                                        <TableCell className="font-medium">{child.name}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(child)}><Edit className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(child)}><Trash2 className="h-4 w-4" /></Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground text-sm p-4 text-center">No sub-departments found.</p>
+                                    )}
+                                </AccordionContent>
+                            </AccordionItem>
+                         )
+                    })}
+                </Accordion>
+            )}
         </CardContent>
       </Card>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent>
             <SheetHeader>
-                <SheetTitle>{isEditMode ? 'Edit Department' : 'Add New Department'}</SheetTitle>
+                <SheetTitle>{isEditMode ? 'Edit Department' : (parentForNewSubDept ? `Add Sub-department to ${parentForNewSubDept.name}`: 'Add New Department')}</SheetTitle>
                 <SheetDescription>
-                    {isEditMode ? "Update the department name." : "Enter the name for the new department."}
+                    {isEditMode ? "Update the department details." : "Enter the details for the new department."}
                 </SheetDescription>
             </SheetHeader>
             <Form {...form}>
@@ -188,7 +248,30 @@ export default function DepartmentsPage() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Department Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Academics, Administration" {...field} /></FormControl>
+                                    <FormControl><Input placeholder="e.g., Academics, HR Office" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="parentId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Parent Department</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger disabled={isEditMode && !!selectedDepartment?.parentId && selectedDepartment?.parentId !== ''}>
+                                          <SelectValue placeholder="Select a parent department" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="">None (Top-Level Department)</SelectItem>
+                                        {topLevelDepartments.filter(d => d.id !== selectedDepartment?.id).map(dept => (
+                                          <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -207,7 +290,10 @@ export default function DepartmentsPage() {
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Are you sure?</DialogTitle>
-                <DialogDescription>This will permanently delete the department "{selectedDepartment?.name}". This action cannot be undone.</DialogDescription>
+                <DialogDescription>
+                    This will permanently delete the department "{selectedDepartment?.name}". This action cannot be undone. 
+                    You cannot delete a department that has sub-departments.
+                </DialogDescription>
             </DialogHeader>
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>

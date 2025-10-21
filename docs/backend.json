@@ -277,7 +277,8 @@
       "properties": {
         "id": { "type": "string" },
         "schoolId": { "type": "string" },
-        "name": { "type": "string", "description": "The name of the department." }
+        "name": { "type": "string", "description": "The name of the department." },
+        "parentId": { "type": "string", "description": "The ID of the parent department, for creating hierarchies." }
       },
       "required": ["id", "schoolId", "name"]
     },
