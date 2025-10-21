@@ -115,7 +115,7 @@ export default function LoginPage() {
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="admin">Admin</TabsTrigger>
+                  <TabsTrigger value="admin">School</TabsTrigger>
                   <TabsTrigger value="teacher">Teacher</TabsTrigger>
                   <TabsTrigger value="student">Student</TabsTrigger>
                 </TabsList>
@@ -147,7 +147,7 @@ export default function LoginPage() {
                         <Input id="password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} />
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Logging in...' : 'Login as Admin'}
+                        {isLoading ? 'Logging in...' : 'Login as School Admin'}
                       </Button>
                     </div>
                   </form>
