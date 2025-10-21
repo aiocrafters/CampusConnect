@@ -60,7 +60,7 @@ import {
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
 import { createUserWithEmailAndPassword } from "firebase/auth"
-import type { Teacher } from "@/lib/types"
+import type { Teacher, Designation } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -70,6 +70,8 @@ import { useState, useEffect } from "react"
 import { format, parseISO } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { sendWelcomeEmail } from "@/ai/flows/send-email-flow"
+import { Label } from "@/components/ui/label"
+
 
 const staffFormSchema = z.object({
   id: z.string().min(1, "Staff ID is required."),
@@ -84,6 +86,10 @@ const staffFormSchema = z.object({
   subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
 });
 
+const designationFormSchema = z.object({
+  name: z.string().min(2, "Designation name is required."),
+});
+
 export default function StaffManagementPage() {
   const { user, firestore, auth } = useFirebase();
   const schoolId = user?.uid;
@@ -93,13 +99,21 @@ export default function StaffManagementPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isDesignationDialogOpen, setIsDesignationDialogOpen] = useState(false);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/teachers`));
   }, [firestore, schoolId]);
+  
+  const designationsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/designations`));
+  }, [firestore, schoolId]);
 
   const { data: staffMembers, isLoading: staffLoading } = useCollection<Teacher>(staffQuery);
+  const { data: designations, isLoading: designationsLoading } = useCollection<Designation>(designationsQuery);
+
 
   const form = useForm<z.infer<typeof staffFormSchema>>({
     resolver: zodResolver(staffFormSchema),
@@ -114,6 +128,12 @@ export default function StaffManagementPage() {
       dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
     },
   });
+  
+  const designationForm = useForm<z.infer<typeof designationFormSchema>>({
+    resolver: zodResolver(designationFormSchema),
+    defaultValues: { name: "" },
+  });
+
 
   useEffect(() => {
     if (isSheetOpen) {
@@ -227,6 +247,22 @@ export default function StaffManagementPage() {
     setIsDeleteDialogOpen(false);
     setSelectedStaff(null);
   }
+  
+  async function onDesignationSubmit(values: z.infer<typeof designationFormSchema>) {
+    if (!firestore || !schoolId) return;
+
+    const designationId = doc(collection(firestore, `schools/${schoolId}/designations`)).id;
+    const designationRef = doc(firestore, `schools/${schoolId}/designations`, designationId);
+    
+    setDocumentNonBlocking(designationRef, {
+      id: designationId,
+      schoolId: schoolId,
+      name: values.name
+    }, { merge: false });
+
+    toast({ title: "Designation Created", description: `The designation "${values.name}" has been created.` });
+    designationForm.reset();
+  }
 
   const roles = ['Primary', 'Middle School', 'High School'];
   const subjects = ['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies'];
@@ -249,6 +285,12 @@ export default function StaffManagementPage() {
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Export
               </span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setIsDesignationDialogOpen(true)}>
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Add Designation
+                </span>
             </Button>
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
@@ -561,6 +603,52 @@ export default function StaffManagementPage() {
               Yes, delete staff member
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isDesignationDialogOpen} onOpenChange={setIsDesignationDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Manage Designations</DialogTitle>
+                <DialogDescription>
+                    Add a new designation or view existing ones.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...designationForm}>
+                <form onSubmit={designationForm.handleSubmit(onDesignationSubmit)} className="space-y-4">
+                    <FormField
+                        control={designationForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>New Designation Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., Principal, Accountant" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="submit">Create Designation</Button>
+                </form>
+            </Form>
+            <div className="mt-6">
+                <h3 className="mb-2 text-sm font-medium text-muted-foreground">Existing Designations</h3>
+                <ScrollArea className="h-40 rounded-md border">
+                    <Table>
+                        <TableBody>
+                            {designationsLoading && <TableRow><TableCell>Loading...</TableCell></TableRow>}
+                            {designations?.map(d => <TableRow key={d.id}><TableCell>{d.name}</TableCell></TableRow>)}
+                            {!designationsLoading && designations?.length === 0 && (
+                                <TableRow><TableCell>No designations created yet.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDesignationDialogOpen(false)}>Close</Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
 

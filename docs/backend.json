@@ -253,6 +253,18 @@
         "subject"
       ]
     },
+    "Designation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Designation",
+      "type": "object",
+      "description": "Represents a staff designation or post within a school.",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "name": { "type": "string", "description": "The name of the designation (e.g., 'Principal', 'Accountant')." }
+      },
+      "required": ["id", "schoolId", "name"]
+    },
     "Exam": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Exam",
@@ -592,6 +604,18 @@
               "name": "teacherId",
               "description": "Unique identifier for the teacher."
             }
+          ]
+        }
+      },
+      {
+        "path": "/schools/{schoolId}/designations/{designationId}",
+        "definition": {
+          "entityName": "Designation",
+          "schema": { "$ref": "#/backend/entities/Designation" },
+          "description": "Collection for staff designations within a school.",
+          "params": [
+            { "name": "schoolId", "description": "Unique identifier for the school." },
+            { "name": "designationId", "description": "Unique identifier for the designation." }
           ]
         }
       },

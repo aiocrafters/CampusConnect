@@ -120,9 +120,15 @@ export interface PerformanceRecord {
   remarks?: string;
 }
     
-
+export interface Designation {
+  id: string;
+  schoolId: string;
+  name: string;
+}
     
 
     
 
     
+
+```
