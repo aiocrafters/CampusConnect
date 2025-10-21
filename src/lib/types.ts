@@ -40,7 +40,7 @@ export interface Teacher {
   qualification: string;
   address: string;
   dateOfJoining: string;
-  role: 'Primary' | 'Middle School' | 'High School';
+  role: string;
   subject: 'General' | 'English' | 'Urdu' | 'Math' | 'Science' | 'Social Studies';
   schoolId: string;
   uid?: string;
@@ -126,6 +126,8 @@ export interface Designation {
   schoolId: string;
   name: string;
 }
+    
+
     
 
     

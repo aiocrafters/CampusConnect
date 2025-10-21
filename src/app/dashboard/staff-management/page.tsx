@@ -82,7 +82,7 @@ const staffFormSchema = z.object({
   qualification: z.string().min(2, "Qualification is required."),
   address: z.string().min(5, "Address is required."),
   dateOfJoining: z.string().min(1, "Date of joining is required."),
-  role: z.enum(['Primary', 'Middle School', 'High School']),
+  role: z.string().min(2, "Role is required."),
   subject: z.enum(['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies']),
   designationId: z.string().optional(),
 });
@@ -128,6 +128,7 @@ export default function StaffManagementPage() {
       address: "",
       dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
       designationId: "",
+      role: "",
     },
   });
   
@@ -158,6 +159,7 @@ export default function StaffManagementPage() {
           address: "",
           dateOfJoining: format(new Date(), 'yyyy-MM-dd'),
           designationId: "none",
+          role: "",
         });
       }
     }
@@ -274,7 +276,6 @@ export default function StaffManagementPage() {
     return designations.find(d => d.id === designationId)?.name || "Not Assigned";
   };
 
-  const roles = ['Primary', 'Middle School', 'High School'];
   const subjects = ['General', 'English', 'Urdu', 'Math', 'Science', 'Social Studies'];
 
   return (
@@ -453,16 +454,9 @@ export default function StaffManagementPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Role / Responsibilities (for Staff Member)</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a role" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {roles.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                               <Input placeholder="e.g., Class Teacher, Accountant" {...field} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -690,3 +684,5 @@ export default function StaffManagementPage() {
     </main>
   )
 }
+
+    
