@@ -25,7 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, limit, orderBy, where } from "firebase/firestore"
+import { collection, query, limit, orderBy, where, getDocs } from "firebase/firestore"
 import { Users, BookUser, School, ClipboardList } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Student, Teacher, ClassSection, Exam, Subject } from "@/lib/types";
@@ -33,6 +33,7 @@ import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns"
+import { errorEmitter, FirestorePermissionError } from "@/firebase/errors";
 
 
 export default function Dashboard() {
@@ -44,6 +45,8 @@ export default function Dashboard() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [isExamDetailDialogOpen, setIsExamDetailDialogOpen] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
 
   // --- Data Fetching ---
   const studentsQuery = useMemoFirebase(() => {
@@ -75,18 +78,12 @@ export default function Dashboard() {
     );
   }, [firestore, schoolId, selectedYear, selectedClass]);
   
-  const subjectsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId || !selectedExam) return null;
-    return query(collection(firestore, `schools/${schoolId}/exams/${selectedExam.id}/subjects`));
-  }, [firestore, schoolId, selectedExam]);
-
 
   const { data: recentStudents, isLoading: studentsLoading } = useCollection<Student>(studentsQuery);
   const { data: allStudents, isLoading: allStudentsLoading } = useCollection<Student>(allStudentsQuery);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
   const { data: allClassSections, isLoading: classesLoading } = useCollection<ClassSection>(classesQuery);
   const { data: exams, isLoading: examsLoading } = useCollection<Exam>(examsQuery);
-  const { data: subjects, isLoading: subjectsLoading } = useCollection<Subject>(subjectsQuery);
 
   const stats = [
     { title: "Total Students", value: allStudents?.length ?? 0, icon: Users, isLoading: allStudentsLoading },
@@ -103,9 +100,29 @@ export default function Dashboard() {
   const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
   const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
   
-  const handleViewExamDetails = (exam: Exam) => {
+  const handleViewExamDetails = async (exam: Exam) => {
     setSelectedExam(exam);
     setIsExamDetailDialogOpen(true);
+    setSubjectsLoading(true);
+
+    if (!firestore || !schoolId) return;
+
+    const subjectsPath = `schools/${schoolId}/exams/${exam.id}/subjects`;
+    const subjectsQuery = query(collection(firestore, subjectsPath));
+    
+    try {
+        const querySnapshot = await getDocs(subjectsQuery);
+        const subjectsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Subject));
+        setSubjects(subjectsData);
+    } catch (error) {
+        const permissionError = new FirestorePermissionError({
+            path: subjectsPath,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    } finally {
+        setSubjectsLoading(false);
+    }
   };
 
 
@@ -327,5 +344,4 @@ export default function Dashboard() {
       </Dialog>
     </div>
   )
-
-    
+}
