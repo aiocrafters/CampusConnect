@@ -37,6 +37,7 @@ import type { Department } from "@/lib/types"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from "@/components/ui/table"
 
 const departmentFormSchema = z.object({
   id: z.string().optional(),
@@ -115,13 +116,13 @@ export default function DepartmentsPage() {
   const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
 
   useEffect(() => {
-    if (departmentsLoading) return;
-    
-    setIsInitializing(false);
-
-    if (departments?.length === 0 && firestore && schoolId) {
+    if (departmentsLoading) {
+      setIsInitializing(true);
+      return;
+    }
+  
+    if (departments && departments.length === 0 && firestore && schoolId) {
       const initializeDepartments = async () => {
-        setIsInitializing(true);
         const batch = writeBatch(firestore);
         
         const rootDeptIds: { [key: string]: string } = {};
@@ -129,9 +130,9 @@ export default function DepartmentsPage() {
         // First pass: create root departments and get their IDs
         defaultDepartments.forEach(dept => {
             if (!dept.parentId) {
-                const deptId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
-                rootDeptIds[dept.name] = deptId;
-                batch.set(doc(firestore, `schools/${schoolId}/departments`, deptId), { ...dept, id: deptId, schoolId });
+                const deptRef = doc(collection(firestore, `schools/${schoolId}/departments`));
+                rootDeptIds[dept.name] = deptRef.id;
+                batch.set(deptRef, { ...dept, id: deptRef.id, schoolId });
             }
         });
 
@@ -141,21 +142,30 @@ export default function DepartmentsPage() {
                 const parentName = rootMapping[dept.parentId];
                 const parentId = rootDeptIds[parentName];
                 if (parentId) {
-                    const deptId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
-                    batch.set(doc(firestore, `schools/${schoolId}/departments`, deptId), { ...dept, id: deptId, schoolId, parentId });
+                    const deptRef = doc(collection(firestore, `schools/${schoolId}/departments`));
+                    batch.set(deptRef, { ...dept, id: deptRef.id, schoolId, parentId });
                 }
             }
         });
         
-        await batch.commit();
-        toast({
-          title: "Departments Initialized",
-          description: "Default departments have been added to your school.",
-        });
-        // Data will be re-fetched by useCollection, no need to setIsInitializing(false) here as re-render will handle it
+        try {
+          await batch.commit();
+          toast({
+            title: "Departments Initialized",
+            description: "Default departments have been added to your school.",
+          });
+        } catch (error) {
+           console.error("Error initializing departments:", error);
+           toast({
+              variant: "destructive",
+              title: "Initialization Failed",
+              description: "Could not add default departments.",
+           });
+        }
       };
       initializeDepartments();
     }
+    setIsInitializing(false);
   }, [departmentsLoading, departments, firestore, schoolId, toast]);
 
   const form = useForm<z.infer<typeof departmentFormSchema>>({
@@ -211,7 +221,7 @@ export default function DepartmentsPage() {
   const onDepartmentSubmit = (values: z.infer<typeof departmentFormSchema>) => {
     if (!firestore || !schoolId) return;
     
-    const dataToSave: Partial<Omit<Department, 'id' | 'schoolId'>> = {
+    const dataToSave = {
         name: values.name,
         parentId: values.parentId === 'none' ? undefined : values.parentId,
         type: values.type,
@@ -225,7 +235,7 @@ export default function DepartmentsPage() {
     } else {
       const departmentId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
       const departmentDocRef = doc(firestore, `schools/${schoolId}/departments`, departmentId);
-      const newDept: Department = {
+      const newDept: Omit<Department, 'id' | 'schoolId'> & { id: string, schoolId: string } = {
         id: departmentId,
         schoolId,
         name: values.name,
@@ -399,7 +409,7 @@ export default function DepartmentsPage() {
                                       <FormControl>
                                         <SelectTrigger disabled={!!parentForNewSubDept}>
                                           <SelectValue placeholder="Select a parent department" />
-                                        </SelectTrigger>
+                                        </Trigger>
                                       </FormControl>
                                       <SelectContent>
                                         <SelectItem value="none">None (Top-Level Department)</SelectItem>
@@ -453,3 +463,5 @@ export default function DepartmentsPage() {
     </main>
   );
 }
+
+    
