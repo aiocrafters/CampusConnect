@@ -29,10 +29,10 @@ import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Send } from "lucide-react"
 
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
+  classSectionId: z.string().optional(),
   admissionNumber: z.string().min(1, "Admission Number is required."),
   admissionDate: z.string().min(1, "Admission Date is required."),
   fullName: z.string().min(2, "Full name is required."),
@@ -53,6 +53,8 @@ export default function AddStudentPage() {
   const { toast } = useToast();
   const router = useRouter();
   
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+
   const recentStudentsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(100));
@@ -64,12 +66,27 @@ export default function AddStudentPage() {
     return query(collection(firestore, `schools/${schoolId}/classSections`));
   }, [firestore, schoolId]);
   const { data: classSections } = useCollection<ClassSection>(classSectionsQuery);
+  
+  const uniqueClasses = useMemo(() => {
+    if (!classSections) return [];
+    const classNames = classSections.map(cs => cs.className);
+    return [...new Set(classNames)].sort((a,b) => {
+        if (a === 'UKG') return -1;
+        if (b === 'UKG') return 1;
+        return parseInt(a, 10) - parseInt(b, 10);
+    });
+  }, [classSections]);
 
+  const sectionsForSelectedClass = useMemo(() => {
+    if (!selectedClass || !classSections) return [];
+    return classSections.filter(cs => cs.className === selectedClass);
+  }, [selectedClass, classSections]);
 
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
       id: "",
+      classSectionId: "",
       admissionNumber: "",
       admissionDate: format(new Date(), 'yyyy-MM-dd'),
       fullName: "",
@@ -84,12 +101,13 @@ export default function AddStudentPage() {
       ifscCode: "",
     },
   });
-
+  
   const resetForm = () => {
     if (!firestore || !schoolId) return;
     const newStudentId = doc(collection(firestore, `schools/${schoolId}/students`)).id;
     form.reset({
       id: newStudentId,
+      classSectionId: "",
       admissionNumber: "",
       admissionDate: format(new Date(), 'yyyy-MM-dd'),
       fullName: "",
@@ -103,6 +121,7 @@ export default function AddStudentPage() {
       bankName: "",
       ifscCode: "",
     });
+    setSelectedClass(null);
   }
 
   useEffect(() => {
@@ -121,17 +140,21 @@ export default function AddStudentPage() {
     
     const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
+
+    const selectedSection = classSections?.find(cs => cs.id === values.classSectionId);
     
-    const dataWithStatus: Omit<Student, 'currentClass' | 'classSectionId' | 'admissionClass'> & { schoolId: string, status: 'Active' } = {
+    const studentData: Omit<Student, 'currentClass' | 'admissionClass'> & Partial<Pick<Student, 'currentClass' | 'admissionClass'>> & { schoolId: string, status: 'Active' } = {
         ...values,
         schoolId,
         status: 'Active' as const,
+        admissionClass: selectedSection?.className,
+        currentClass: selectedSection?.className,
     };
-    batch.set(studentDocRef, dataWithStatus);
+    batch.set(studentDocRef, studentData);
 
-    const timelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
-    batch.set(timelineEventRef, {
-        id: timelineEventRef.id,
+    const admissionTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+    batch.set(admissionTimelineEventRef, {
+        id: admissionTimelineEventRef.id,
         studentId: values.id,
         timestamp: new Date().toISOString(),
         type: 'ADMISSION',
@@ -139,18 +162,28 @@ export default function AddStudentPage() {
         details: { academicYear: new Date().getFullYear().toString() }
     });
 
+    if (selectedSection) {
+        const classAssignTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+        batch.set(classAssignTimelineEventRef, {
+            id: classAssignTimelineEventRef.id,
+            studentId: values.id,
+            timestamp: new Date().toISOString(),
+            type: 'CLASS_ASSIGNMENT',
+            description: `Assigned to Class ${selectedSection.className} - Section ${selectedSection.sectionIdentifier}.`,
+            details: { class: selectedSection.className, section: selectedSection.sectionIdentifier, academicYear: new Date().getFullYear().toString() }
+        });
+    }
+
+
     await batch.commit();
 
     toast({
       title: "Student Added",
-      description: `${values.fullName} has been added. You can now send them to their class section from the 'Classes' page.`,
+      description: `${values.fullName} has been successfully added to the school.`,
     });
 
     resetForm();
   }
-
-  
-  const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
@@ -165,6 +198,53 @@ export default function AddStudentPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <div className="grid md:grid-cols-2 gap-6 p-4">
+                <div className="md:col-span-2 grid md:grid-cols-2 gap-6">
+                    <FormItem>
+                        <FormLabel>Current Class</FormLabel>
+                        <Select onValueChange={(value) => {
+                            setSelectedClass(value);
+                            form.setValue('classSectionId', '');
+                        }} value={selectedClass || ''}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a class" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {uniqueClasses.map((className) => (
+                                    <SelectItem key={className} value={className}>
+                                        Class {className}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                     <FormField
+                      control={form.control}
+                      name="classSectionId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Section</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClass}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a section" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                               {sectionsForSelectedClass.map((section) => (
+                                    <SelectItem key={section.id} value={section.id}>
+                                        {section.sectionIdentifier} {section.sectionName ? `(${section.sectionName})` : ''}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
                 <FormField
                   control={form.control}
                   name="id"
