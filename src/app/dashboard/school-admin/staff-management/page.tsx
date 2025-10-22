@@ -595,41 +595,44 @@ export default function StaffManagementPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {!staffLoading && staffMembers?.length === 0 && (
-                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
-                    No staff found. Add one to get started.
-                  </TableCell>
-                </TableRow>
+              {staffMembers && staffMembers.length > 0 ? (
+                staffMembers.map((staff, index) => (
+                  <TableRow key={staff.id}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell className="font-medium truncate max-w-24">{staff.id}</TableCell>
+                    <TableCell className="font-medium">{staff.name}</TableCell>
+                    <TableCell>{staff.email}</TableCell>
+                    <TableCell>{getDepartmentName(staff.departmentId)}</TableCell>
+                    <TableCell>{getDesignationName(staff.designationId)}</TableCell>
+                    <TableCell>{staff.contactNumber}</TableCell>
+                    <TableCell>{staff.role}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleEditStaff(staff)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewStaff(staff)}>View Details</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteStaff(staff)}>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                !staffLoading && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center">
+                      No staff found. Add one to get started.
+                    </TableCell>
+                  </TableRow>
+                )
               )}
-              {staffMembers && staffMembers.map((staff, index) => (
-              <TableRow key={staff.id}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell className="font-medium truncate max-w-24">{staff.id}</TableCell>
-                <TableCell className="font-medium">{staff.name}</TableCell>
-                <TableCell>{staff.email}</TableCell>
-                <TableCell>{getDepartmentName(staff.departmentId)}</TableCell>
-                <TableCell>{getDesignationName(staff.designationId)}</TableCell>
-                <TableCell>{staff.contactNumber}</TableCell>
-                <TableCell>{staff.role}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleEditStaff(staff)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleViewStaff(staff)}>View Details</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteStaff(staff)}>Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-              ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -683,7 +686,7 @@ export default function StaffManagementPage() {
                 <span>{selectedStaff.qualification}</span>
               </div>
               <div className="grid grid-cols-[150px_1fr] items-center gap-2">
-                <span className="font-semibold text-muted-foreground">Role</span>
+                <span className="font-semibold text-muted-foreground">Responsibilities</span>
                 <span>{selectedStaff.role}</span>
               </div>
             </div>
@@ -820,3 +823,6 @@ export default function StaffManagementPage() {
 
 
 
+
+
+    
