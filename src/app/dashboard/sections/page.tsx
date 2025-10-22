@@ -67,7 +67,7 @@ export default function SectionsPage() {
   // Fetch all teachers for the school
   const teachersQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/teachers`));
+    return query(collection(firestore, `schools/${schoolId}/staff`));
   }, [firestore, schoolId]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(teachersQuery);
 

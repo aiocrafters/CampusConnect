@@ -97,7 +97,7 @@ export default function ExamsPage() {
 
   const teachersQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/teachers`));
+    return query(collection(firestore, `schools/${schoolId}/staff`));
   }, [firestore, schoolId]);
   const { data: teachers } = useCollection<Teacher>(teachersQuery);
 
@@ -470,5 +470,3 @@ export default function ExamsPage() {
     </main>
   )
 }
-
-    

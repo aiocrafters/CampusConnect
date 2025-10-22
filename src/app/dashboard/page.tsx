@@ -61,7 +61,7 @@ export default function Dashboard() {
 
   const teachersQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return collection(firestore, `schools/${schoolId}/teachers`);
+    return collection(firestore, `schools/${schoolId}/staff`);
   }, [firestore, schoolId]);
 
   const classesQuery = useMemoFirebase(() => {
@@ -345,5 +345,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    
