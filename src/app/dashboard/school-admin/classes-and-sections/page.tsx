@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, where } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { PlusCircle, Edit, Trash2 } from "lucide-react"
+import { PlusCircle, Trash2 } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -98,18 +98,16 @@ export default function ClassesAndSectionsPage() {
     const sectionId = doc(collection(firestore, `schools/${schoolId}/classSections`)).id;
     const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, sectionId);
 
-    const newSection: ClassSection = {
+    const newSection: Omit<ClassSection, 'sectionName' | 'sectionInchargeId'> = {
         id: sectionId,
         schoolId,
         className: selectedClass.className,
         sectionIdentifier: values.sectionIdentifier,
-        sectionName: "", // Optional, can be added later
-        sectionInchargeId: "", // Optional, can be added later
     };
 
     setDocumentNonBlocking(sectionDocRef, newSection, { merge: false });
     toast({ title: "Section Added", description: `Section ${values.sectionIdentifier} added to Class ${selectedClass.className}.` });
-    setIsSectionDialogOpen(false);
+    sectionForm.setValue('sectionIdentifier', nextSectionIdentifier); // Reset for next entry
   };
   
   const handleAddSectionClick = (masterClass: MasterClass) => {
@@ -167,7 +165,6 @@ export default function ClassesAndSectionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Class Name</TableHead>
-                  <TableHead>Sections</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -181,13 +178,9 @@ export default function ClassesAndSectionsPage() {
                 {masterClasses?.map(mc => (
                   <TableRow key={mc.id}>
                     <TableCell className="font-semibold text-lg">{mc.className}</TableCell>
-                    <TableCell>
-                      {/* You can list sections here, for now we will just show a button to manage */}
-                       <span className="text-muted-foreground">Click 'Add Section' to manage</span>
-                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => handleAddSectionClick(mc)}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add Section
+                        <PlusCircle className="h-4 w-4 mr-2" /> Manage Sections
                       </Button>
                     </TableCell>
                   </TableRow>
