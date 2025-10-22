@@ -561,6 +561,8 @@ export default function StaffManagementPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Serial</TableHead>
+                <TableHead>Staff ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
@@ -575,20 +577,22 @@ export default function StaffManagementPage() {
             <TableBody>
               {staffLoading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     Loading staff data...
                   </TableCell>
                 </TableRow>
               )}
               {!staffLoading && staffMembers?.length === 0 && (
                  <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No staff found. Add one to get started.
                   </TableCell>
                 </TableRow>
               )}
-              {staffMembers && staffMembers.map(staff => (
+              {staffMembers && staffMembers.map((staff, index) => (
               <TableRow key={staff.id}>
+                <TableCell>{index + 1}</TableCell>
+                <TableCell className="font-medium truncate max-w-24">{staff.id}</TableCell>
                 <TableCell className="font-medium">{staff.name}</TableCell>
                 <TableCell>{staff.email}</TableCell>
                 <TableCell>{getDepartmentName(staff.departmentId)}</TableCell>
