@@ -608,26 +608,6 @@
         }
       },
       {
-        "path": "/schools/{schoolId}/staff/{staffId}",
-        "definition": {
-          "entityName": "Staff",
-          "schema": {
-            "$ref": "#/backend/entities/Staff"
-          },
-          "description": "Collection for all staff members within a school. Includes denormalized 'schoolId' for authorization independence.",
-          "params": [
-            {
-              "name": "schoolId",
-              "description": "Unique identifier for the school."
-            },
-            {
-              "name": "staffId",
-              "description": "Unique identifier for the staff member."
-            }
-          ]
-        }
-      },
-      {
         "path": "/schools/{schoolId}/designations/{designationId}",
         "definition": {
           "entityName": "Designation",
@@ -803,6 +783,26 @@
             {
               "name": "identifier",
               "description": "Unique identifier value (e.g., 'phoneNumber_1234567890')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/schools/{schoolId}/staff/{staffId}",
+        "definition": {
+          "entityName": "Staff",
+          "schema": {
+            "$ref": "#/backend/entities/Staff"
+          },
+          "description": "Collection for all staff members within a school. This has been updated to force a rule regeneration.",
+          "params": [
+            {
+              "name": "schoolId",
+              "description": "Unique identifier for the school."
+            },
+            {
+              "name": "staffId",
+              "description": "Unique identifier for the staff member."
             }
           ]
         }
