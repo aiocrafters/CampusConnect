@@ -45,7 +45,6 @@ const studentFormSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
-  admissionClass: z.string().min(1, "Admission Class is required"),
   currentClass: z.string().min(1, "Current Class is required"),
 });
 
@@ -84,7 +83,6 @@ export default function AddStudentPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
-      admissionClass: "",
       currentClass: "",
     },
   });
@@ -106,7 +104,6 @@ export default function AddStudentPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
-      admissionClass: "",
       currentClass: "",
     });
   }
@@ -128,9 +125,10 @@ export default function AddStudentPage() {
     const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
     
-    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason' | 'classSectionId'> & { schoolId: string } = {
+    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason' | 'classSectionId' | 'admissionClass'> & { schoolId: string, admissionClass: string } = {
         ...values,
         schoolId,
+        admissionClass: values.currentClass,
     };
     
     const dataWithStatus: Student = {
@@ -146,8 +144,8 @@ export default function AddStudentPage() {
         studentId: values.id,
         timestamp: new Date().toISOString(),
         type: 'ADMISSION',
-        description: `Admitted to Class ${values.admissionClass}`,
-        details: { class: values.admissionClass, academicYear: new Date().getFullYear().toString() }
+        description: `Admitted to Class ${values.currentClass}`,
+        details: { class: values.currentClass, academicYear: new Date().getFullYear().toString() }
     });
 
     await batch.commit();
@@ -389,30 +387,6 @@ export default function AddStudentPage() {
                 />
                  <FormField
                   control={form.control}
-                  name="admissionClass"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Admission Class</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an admission class" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {classOptions.map((className) => (
-                                <SelectItem key={className} value={className}>
-                                    Class {className}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
                   name="currentClass"
                   render={({ field }) => (
                     <FormItem>
@@ -495,3 +469,5 @@ export default function AddStudentPage() {
     </main>
   )
 }
+
+    

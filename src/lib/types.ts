@@ -19,7 +19,7 @@ export interface Student {
   dateOfBirth: string; 
   parentGuardianName: string;
   motherName?: string;
-  admissionClass: string;
+  admissionClass?: string;
   currentClass: string;
   classSectionId: string;
   address: string;
@@ -137,6 +137,8 @@ export interface Department {
   isDefault?: boolean;
   type?: 'Academic' | 'Non-Academic';
 }
+    
+
     
 
     
