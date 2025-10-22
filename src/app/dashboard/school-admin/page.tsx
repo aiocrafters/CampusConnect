@@ -6,8 +6,7 @@ import Link from "next/link";
 
 const adminLinks = [
     { href: "/dashboard/school-admin/staff-management", icon: BookUser, label: "Staff Management" },
-    { href: "/dashboard/school-admin/classes", icon: SchoolIcon, label: "Classes" },
-    { href: "/dashboard/school-admin/sections", icon: Users, label: "Sections" },
+    { href: "/dashboard/school-admin/classes-and-sections", icon: SchoolIcon, label: "Classes & Sections" },
     { href: "/dashboard/school-admin/subjects", icon: BookOpenCheck, label: "Subjects" },
     { href: "/dashboard/school-admin/departments", icon: Building, label: "Departments" },
     { href: "/dashboard/school-admin/exams", icon: ClipboardList, label: "Exams" },
