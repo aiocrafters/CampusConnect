@@ -54,8 +54,11 @@ export default function DepartmentsPage() {
   });
 
   const parentDepartments = useMemo(() => {
-    return departments?.filter(d => !d.parentId) || [];
-  }, [departments]);
+    if (!departments) return [];
+    // Only allow top-level departments to be parents
+    // Exclude the department being edited from the list of possible parents
+    return departments.filter(d => !d.parentId && d.id !== selectedDepartment?.id);
+  }, [departments, selectedDepartment]);
   
   const getParentName = (parentId?: string) => {
     if (!parentId || parentId === 'none' || !departments) return "Top-Level";
@@ -152,6 +155,7 @@ export default function DepartmentsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Serial</TableHead>
                 <TableHead>Department Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Parent Department</TableHead>
@@ -161,16 +165,17 @@ export default function DepartmentsPage() {
             <TableBody>
               {departmentsLoading && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">Loading departments...</TableCell>
+                  <TableCell colSpan={5} className="text-center">Loading departments...</TableCell>
                 </TableRow>
               )}
                {!departmentsLoading && departments?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">No departments created yet. Add one to get started.</TableCell>
+                  <TableCell colSpan={5} className="text-center">No departments created yet. Add one to get started.</TableCell>
                 </TableRow>
               )}
-              {departments && departments.map(dept => (
+              {departments && departments.map((dept, index) => (
                 <TableRow key={dept.id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-medium">{dept.name}</TableCell>
                   <TableCell>{dept.type}</TableCell>
                   <TableCell>{getParentName(dept.parentId)}</TableCell>
@@ -200,6 +205,17 @@ export default function DepartmentsPage() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onDepartmentSubmit)} className="flex flex-col h-full">
                     <div className="grid gap-4 py-4">
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Department Name</FormLabel>
+                                    <FormControl><Input placeholder="e.g., Principal's Office" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField
                             control={form.control}
                             name="type"
@@ -232,17 +248,6 @@ export default function DepartmentsPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Department Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Principal's Office" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
