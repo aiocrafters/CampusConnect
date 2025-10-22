@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -7,15 +6,9 @@ import {
   BookOpenCheck,
   LayoutDashboard,
   Users,
-  BookUser,
-  School as SchoolIcon,
-  ClipboardList,
-  FileText,
-  Menu,
   PlusCircle,
-  Award,
-  Building,
   UserCog,
+  Menu,
 } from "lucide-react"
 
 import {
@@ -28,18 +21,10 @@ import { UserNav } from "./user-nav"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { href: "/dashboard/school-admin", icon: UserCog, label: "School Admin" },
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/dashboard/school-admin", icon: UserCog, label: "School Admin" },
   { href: "/dashboard/add-student", icon: PlusCircle, label: "Add Student" },
   { href: "/dashboard/students", icon: Users, label: "Students" },
-  { href: "/dashboard/staff-management", icon: BookUser, label: "Staff" },
-  { href: "/dashboard/classes", icon: SchoolIcon, label: "Classes" },
-  { href: "/dashboard/sections", icon: Users, label: "Sections" },
-  { href: "/dashboard/subjects", icon: BookOpenCheck, label: "Subjects" },
-  { href: "/dashboard/departments", icon: Building, label: "Departments" },
-  { href: "/dashboard/exams", icon: ClipboardList, label: "Exams" },
-  { href: "/dashboard/award-sheet", icon: Award, label: "Award Sheet" },
-  { href: "/dashboard/reports", icon: FileText, label: "Reports" },
 ];
 
 export function DashboardHeader() {
@@ -61,7 +46,7 @@ export function DashboardHeader() {
             href={item.href}
             className={cn(
               "flex items-center gap-2 transition-colors hover:text-foreground whitespace-nowrap",
-              pathname === item.href ? "text-foreground" : "text-muted-foreground"
+              pathname.startsWith(item.href) && pathname !== '/dashboard' && item.href !== '/dashboard' ? "text-foreground" : pathname === item.href ? "text-foreground" : "text-muted-foreground"
             )}
           >
             <item.icon className="h-5 w-5" />
@@ -95,7 +80,7 @@ export function DashboardHeader() {
                 href={item.href}
                 className={cn(
                   "flex items-center gap-2 transition-colors hover:text-foreground",
-                   pathname === item.href ? "text-foreground" : "text-muted-foreground"
+                   pathname.startsWith(item.href) && pathname !== '/dashboard' && item.href !== '/dashboard' ? "text-foreground" : pathname === item.href ? "text-foreground" : "text-muted-foreground"
                 )}
               >
                 <item.icon className="h-5 w-5" />
