@@ -6,7 +6,9 @@ import {
   File,
   PlusCircle,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  Edit,
+  Trash2,
 } from "lucide-react"
 import {
   Card,
@@ -87,16 +89,25 @@ const staffFormSchema = z.object({
   departmentId: z.string().optional(),
 });
 
+const designationFormSchema = z.object({
+  name: z.string().min(2, "Designation name is required."),
+});
+
 
 export default function StaffManagementPage() {
   const { user, firestore, auth } = useFirebase();
   const schoolId = user?.uid;
   const { toast } = useToast();
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isStaffSheetOpen, setIsStaffSheetOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Teacher | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  const [isDesignationSheetOpen, setIsDesignationSheetOpen] = useState(false);
+  const [selectedDesignation, setSelectedDesignation] = useState<Designation | null>(null);
+  const [isDesignationEditMode, setIsDesignationEditMode] = useState(false);
+  const [isDeleteDesignationDialogOpen, setIsDeleteDesignationDialogOpen] = useState(false);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -118,7 +129,7 @@ export default function StaffManagementPage() {
   const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
 
 
-  const form = useForm<z.infer<typeof staffFormSchema>>({
+  const staffForm = useForm<z.infer<typeof staffFormSchema>>({
     resolver: zodResolver(staffFormSchema),
     defaultValues: {
       id: "",
@@ -135,11 +146,17 @@ export default function StaffManagementPage() {
     },
   });
   
+  const designationForm = useForm<z.infer<typeof designationFormSchema>>({
+    resolver: zodResolver(designationFormSchema),
+    defaultValues: {
+      name: "",
+    },
+  });
 
   useEffect(() => {
-    if (isSheetOpen) {
+    if (isStaffSheetOpen) {
       if (isEditMode && selectedStaff) {
-        form.reset({
+        staffForm.reset({
           ...selectedStaff,
           dateOfJoining: selectedStaff.dateOfJoining ? format(parseISO(selectedStaff.dateOfJoining), 'yyyy-MM-dd') : '',
           password: "",
@@ -148,7 +165,7 @@ export default function StaffManagementPage() {
         });
       } else {
         const newStaffId = doc(collection(firestore!, `schools/${schoolId}/staff`)).id;
-        form.reset({
+        staffForm.reset({
           id: newStaffId,
           name: "",
           email: "",
@@ -163,31 +180,62 @@ export default function StaffManagementPage() {
         });
       }
     }
-  }, [isSheetOpen, isEditMode, selectedStaff, form, firestore, schoolId]);
+  }, [isStaffSheetOpen, isEditMode, selectedStaff, staffForm, firestore, schoolId]);
 
-  const handleAddNew = () => {
+  useEffect(() => {
+    if (isDesignationSheetOpen) {
+      if (isDesignationEditMode && selectedDesignation) {
+        designationForm.reset({
+          name: selectedDesignation.name,
+        });
+      } else {
+        designationForm.reset({
+          name: "",
+        });
+      }
+    }
+  }, [isDesignationSheetOpen, isDesignationEditMode, selectedDesignation, designationForm]);
+
+  const handleAddNewStaff = () => {
     setIsEditMode(false);
     setSelectedStaff(null);
-    setIsSheetOpen(true);
+    setIsStaffSheetOpen(true);
   };
 
-  const handleEdit = (staff: Teacher) => {
+  const handleEditStaff = (staff: Teacher) => {
     setIsEditMode(true);
     setSelectedStaff(staff);
-    setIsSheetOpen(true);
+    setIsStaffSheetOpen(true);
   };
   
-  const handleView = (staff: Teacher) => {
+  const handleViewStaff = (staff: Teacher) => {
     setSelectedStaff(staff);
     setIsViewDialogOpen(true);
   };
 
-  const handleDelete = (staff: Teacher) => {
+  const handleDeleteStaff = (staff: Teacher) => {
     setSelectedStaff(staff);
     setIsDeleteDialogOpen(true);
   };
 
-  async function onSubmit(values: z.infer<typeof staffFormSchema>) {
+  const handleAddNewDesignation = () => {
+    setIsDesignationEditMode(false);
+    setSelectedDesignation(null);
+    setIsDesignationSheetOpen(true);
+  };
+
+  const handleEditDesignation = (designation: Designation) => {
+    setIsDesignationEditMode(true);
+    setSelectedDesignation(designation);
+    setIsDesignationSheetOpen(true);
+  };
+
+  const handleDeleteDesignation = (designation: Designation) => {
+    setSelectedDesignation(designation);
+    setIsDeleteDesignationDialogOpen(true);
+  };
+
+  async function onStaffSubmit(values: z.infer<typeof staffFormSchema>) {
     if (!firestore || !schoolId || !auth) {
       toast({ variant: "destructive", title: "Error", description: "Could not find school information or auth service." });
       return;
@@ -238,13 +286,13 @@ export default function StaffManagementPage() {
       }
     }
 
-    form.reset();
-    setIsSheetOpen(false);
+    staffForm.reset();
+    setIsStaffSheetOpen(false);
     setIsEditMode(false);
     setSelectedStaff(null);
   }
 
-  async function confirmDelete() {
+  async function confirmDeleteStaff() {
     if (!firestore || !schoolId || !selectedStaff) {
       toast({ variant: "destructive", title: "Error", description: "Could not delete staff member." });
       return;
@@ -255,7 +303,32 @@ export default function StaffManagementPage() {
     setIsDeleteDialogOpen(false);
     setSelectedStaff(null);
   }
-  
+
+  async function onDesignationSubmit(values: z.infer<typeof designationFormSchema>) {
+    if (!firestore || !schoolId) return;
+
+    if (isDesignationEditMode && selectedDesignation) {
+      const designationDocRef = doc(firestore, `schools/${schoolId}/designations`, selectedDesignation.id);
+      updateDocumentNonBlocking(designationDocRef, values);
+      toast({ title: "Designation Updated" });
+    } else {
+      const designationId = doc(collection(firestore, `schools/${schoolId}/designations`)).id;
+      const designationDocRef = doc(firestore, `schools/${schoolId}/designations`, designationId);
+      const data: Designation = { id: designationId, schoolId, name: values.name };
+      setDocumentNonBlocking(designationDocRef, data);
+      toast({ title: "Designation Added" });
+    }
+    setIsDesignationSheetOpen(false);
+  }
+
+  async function confirmDeleteDesignation() {
+    if (!firestore || !schoolId || !selectedDesignation) return;
+    const designationDocRef = doc(firestore, `schools/${schoolId}/designations`, selectedDesignation.id);
+    deleteDocumentNonBlocking(designationDocRef);
+    toast({ title: "Designation Deleted", variant: "destructive" });
+    setIsDeleteDesignationDialogOpen(false);
+  }
+
   const getDesignationName = (designationId?: string) => {
     if (!designationId || !designations || designationId === 'none') return "Not Assigned";
     return designations.find(d => d.id === designationId)?.name || "Not Assigned";
@@ -285,9 +358,15 @@ export default function StaffManagementPage() {
                 Export
               </span>
             </Button>
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleAddNewDesignation}>
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Add Designation
+              </span>
+            </Button>
+            <Sheet open={isStaffSheetOpen} onOpenChange={setIsStaffSheetOpen}>
               <SheetTrigger asChild>
-                <Button size="sm" className="h-8 gap-1" onClick={handleAddNew}>
+                <Button size="sm" className="h-8 gap-1" onClick={handleAddNewStaff}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                     Add Staff
@@ -301,12 +380,12 @@ export default function StaffManagementPage() {
                    {isEditMode ? "Update the staff member's information below." : 'Fill in the details to add a new staff member.'}
                   </SheetDescription>
                 </SheetHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)}>
+                <Form {...staffForm}>
+                  <form onSubmit={staffForm.handleSubmit(onStaffSubmit)}>
                    <ScrollArea className="h-[calc(100vh-10rem)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 px-4">
                       <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="id"
                         render={({ field }) => (
                           <FormItem className="md:col-span-2">
@@ -319,7 +398,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem>
@@ -332,7 +411,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                        <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="email"
                         render={({ field }) => (
                           <FormItem>
@@ -345,7 +424,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                        {!isEditMode && <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="password"
                         render={({ field }) => (
                           <FormItem className="md:col-span-2">
@@ -358,7 +437,7 @@ export default function StaffManagementPage() {
                         )}
                       />}
                        <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="contactNumber"
                         render={({ field }) => (
                           <FormItem>
@@ -371,7 +450,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="dateOfJoining"
                         render={({ field }) => (
                           <FormItem>
@@ -384,7 +463,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="qualification"
                         render={({ field }) => (
                           <FormItem>
@@ -397,7 +476,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="address"
                         render={({ field }) => (
                           <FormItem>
@@ -410,7 +489,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                        <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="designationId"
                         render={({ field }) => (
                           <FormItem>
@@ -431,7 +510,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                        <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="departmentId"
                         render={({ field }) => (
                           <FormItem>
@@ -452,7 +531,7 @@ export default function StaffManagementPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={staffForm.control}
                         name="role"
                         render={({ field }) => (
                           <FormItem>
@@ -526,9 +605,9 @@ export default function StaffManagementPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleEdit(staff)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleView(staff)}>View Details</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(staff)}>Delete</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditStaff(staff)}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewStaff(staff)}>View Details</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteStaff(staff)}>Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -539,6 +618,52 @@ export default function StaffManagementPage() {
         </CardContent>
       </Card>
       
+      <Card>
+        <CardHeader>
+          <CardTitle>Designations</CardTitle>
+          <CardDescription>Manage staff designations for your school.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Designation Name</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {designationsLoading && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center">
+                    Loading designations...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!designationsLoading && designations?.length === 0 && (
+                 <TableRow>
+                  <TableCell colSpan={2} className="text-center">
+                    No designations found. Add one to get started.
+                  </TableCell>
+                </TableRow>
+              )}
+              {designations && designations.map(designation => (
+              <TableRow key={designation.id}>
+                <TableCell className="font-medium">{designation.name}</TableCell>
+                <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditDesignation(designation)}>
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDesignation(designation)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </TableCell>
+              </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -611,13 +736,59 @@ export default function StaffManagementPage() {
             <DialogClose asChild>
                 <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button variant="destructive" onClick={confirmDeleteStaff}>
               Yes, delete staff member
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Sheet open={isDesignationSheetOpen} onOpenChange={setIsDesignationSheetOpen}>
+        <SheetContent>
+            <SheetHeader>
+                <SheetTitle>{isDesignationEditMode ? 'Edit Designation' : 'Add New Designation'}</SheetTitle>
+            </SheetHeader>
+            <Form {...designationForm}>
+                <form onSubmit={designationForm.handleSubmit(onDesignationSubmit)} className="flex flex-col h-full">
+                    <div className="grid gap-4 py-4">
+                        <FormField
+                            control={designationForm.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Designation Name</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Principal, Accountant" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <SheetFooter className="mt-auto">
+                        <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
+                        <Button type="submit">{isDesignationEditMode ? 'Save Changes' : 'Add Designation'}</Button>
+                    </SheetFooter>
+                </form>
+            </Form>
+        </SheetContent>
+      </Sheet>
+
+       <Dialog open={isDeleteDesignationDialogOpen} onOpenChange={setIsDeleteDesignationDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Are you sure?</DialogTitle>
+                <DialogDescription>This will permanently delete the designation "{selectedDesignation?.name}". This action cannot be undone.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button variant="destructive" onClick={confirmDeleteDesignation}>Yes, delete designation</Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
       
     </main>
   )
 }
+
+    
