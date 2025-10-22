@@ -69,7 +69,13 @@ export default function DepartmentsPage() {
   
   const getParentName = (parentId?: string) => {
     if (!parentId || parentId === 'none' || !departments) return "Top-Level";
-    return departments.find(d => d.id === parentId)?.name || "Unknown";
+    const parentDept = departments.find(d => d.id === parentId);
+    if(parentDept) return parentDept.name;
+    // For static options
+    if (["Academic", "Administrative", "Students Welfare", "Support & Operations"].includes(parentId)) {
+        return parentId;
+    }
+    return "Top-Level";
   };
 
   const handleEdit = (department: Department) => {
@@ -193,6 +199,10 @@ export default function DepartmentsPage() {
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select a parent department" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="none">None (Top-Level Department)</SelectItem>
+                                            <SelectItem value="Academic">Academic</SelectItem>
+                                            <SelectItem value="Administrative">Administrative</SelectItem>
+                                            <SelectItem value="Students Welfare">Students Welfare</SelectItem>
+                                            <SelectItem value="Support & Operations">Support & Operations</SelectItem>
                                             {parentDepartments.map(dept => (
                                                 <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                                             ))}
@@ -310,6 +320,10 @@ export default function DepartmentsPage() {
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select a parent department" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="none">None (Top-Level Department)</SelectItem>
+                                            <SelectItem value="Academic">Academic</SelectItem>
+                                            <SelectItem value="Administrative">Administrative</SelectItem>
+                                            <SelectItem value="Students Welfare">Students Welfare</SelectItem>
+                                            <SelectItem value="Support & Operations">Support & Operations</SelectItem>
                                             {parentDepartments.map(dept => (
                                                 <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                                             ))}
@@ -344,5 +358,3 @@ export default function DepartmentsPage() {
     </main>
   );
 }
-
-    
