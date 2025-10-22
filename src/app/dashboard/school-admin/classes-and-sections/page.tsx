@@ -58,6 +58,26 @@ export default function ClassesAndSectionsPage() {
     defaultValues: { sectionIdentifier: "" },
   });
   
+  const sortedMasterClasses = useMemo(() => {
+    if (!masterClasses) return [];
+    return [...masterClasses].sort((a, b) => {
+      const classA = a.className;
+      const classB = b.className;
+
+      if (classA === 'UKG') return -1;
+      if (classB === 'UKG') return 1;
+
+      const numA = parseInt(classA, 10);
+      const numB = parseInt(classB, 10);
+
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB;
+      }
+      
+      return classA.localeCompare(classB); // Fallback for non-numeric names
+    });
+  }, [masterClasses]);
+
   const nextSectionIdentifier = useMemo(() => {
     if (!sectionsForSelectedClass) return "A";
     const existingIdentifiers = sectionsForSelectedClass.map(s => s.sectionIdentifier);
@@ -174,10 +194,10 @@ export default function ClassesAndSectionsPage() {
                 {masterClassesLoading && (
                   <TableRow><TableCell colSpan={3} className="text-center">Loading classes...</TableCell></TableRow>
                 )}
-                {!masterClassesLoading && masterClasses?.length === 0 && (
+                {!masterClassesLoading && sortedMasterClasses.length === 0 && (
                   <TableRow><TableCell colSpan={3} className="text-center">No classes found. Add one to get started.</TableCell></TableRow>
                 )}
-                {masterClasses?.map((mc, index) => (
+                {sortedMasterClasses.map((mc, index) => (
                   <TableRow key={mc.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-semibold text-lg">{mc.className}</TableCell>
