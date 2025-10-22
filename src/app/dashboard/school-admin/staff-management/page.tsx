@@ -581,7 +581,7 @@ export default function StaffManagementPage() {
                 <TableHead>Department</TableHead>
                 <TableHead>Designation</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Responsibilities</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -816,6 +816,7 @@ export default function StaffManagementPage() {
     </main>
   )
 }
+
 
 
 
