@@ -45,6 +45,8 @@ export interface Teacher {
   uid?: string;
   designationId?: string;
   departmentId?: string;
+  status: 'Active' | 'Inactive';
+  inactiveReason?: string;
 }
 
 export interface ClassSection {
@@ -135,6 +137,8 @@ export interface Department {
   isDefault?: boolean;
   type?: 'Academic' | 'Non-Academic';
 }
+    
+
     
 
     

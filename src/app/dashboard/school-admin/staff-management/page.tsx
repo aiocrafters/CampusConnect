@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
+  ShieldCheck,
 } from "lucide-react"
 import {
   Card,
@@ -32,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -60,7 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
+import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc } from "firebase/firestore"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import type { Teacher, Designation, Department } from "@/lib/types"
@@ -73,6 +75,9 @@ import { useState, useEffect, useMemo } from "react"
 import { format, parseISO } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { sendWelcomeEmail } from "@/ai/flows/send-email-flow"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
 
 
 const staffFormSchema = z.object({
@@ -87,6 +92,8 @@ const staffFormSchema = z.object({
   role: z.string().min(2, "Role is required."),
   designationId: z.string().optional(),
   departmentId: z.string().optional(),
+  status: z.enum(["Active", "Inactive"]),
+  inactiveReason: z.string().optional(),
 });
 
 const designationFormSchema = z.object({
@@ -101,8 +108,11 @@ export default function StaffManagementPage() {
   const [isStaffSheetOpen, setIsStaffSheetOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Teacher | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [inactiveReason, setInactiveReason] = useState('');
+
 
   const [isDesignationSheetOpen, setIsDesignationSheetOpen] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState<Designation | null>(null);
@@ -152,6 +162,7 @@ export default function StaffManagementPage() {
       designationId: "",
       departmentId: "",
       role: "",
+      status: "Active",
     },
   });
   
@@ -186,10 +197,18 @@ export default function StaffManagementPage() {
           designationId: "none",
           departmentId: "none",
           role: "",
+          status: "Active",
         });
       }
     }
   }, [isStaffSheetOpen, isEditMode, selectedStaff, staffForm, firestore, schoolId]);
+  
+  useEffect(() => {
+    if (isStatusDialogOpen && selectedStaff) {
+        setCurrentStatus(selectedStaff.status);
+        setInactiveReason(selectedStaff.inactiveReason || '');
+    }
+}, [isStatusDialogOpen, selectedStaff]);
 
   useEffect(() => {
     if (isDesignationSheetOpen) {
@@ -222,9 +241,9 @@ export default function StaffManagementPage() {
     setIsViewDialogOpen(true);
   };
 
-  const handleDeleteStaff = (staff: Teacher) => {
+  const handleSetStatus = (staff: Teacher) => {
     setSelectedStaff(staff);
-    setIsDeleteDialogOpen(true);
+    setIsStatusDialogOpen(true);
   };
 
   const handleAddNewDesignation = () => {
@@ -255,7 +274,7 @@ export default function StaffManagementPage() {
     const { password, ...staffData } = values;
     const staffDocRef = doc(firestore, `schools/${schoolId}/staff`, values.id);
     
-    const dataToSave = {
+    const dataToSave: Omit<Teacher, 'uid'> = {
         ...staffData,
         schoolId,
         designationId: values.designationId === 'none' ? '' : values.designationId,
@@ -302,17 +321,22 @@ export default function StaffManagementPage() {
     setIsEditMode(false);
     setSelectedStaff(null);
   }
-
-  async function confirmDeleteStaff() {
+  
+  async function handleSaveStatus() {
     if (!firestore || !schoolId || !selectedStaff) {
-      toast({ variant: "destructive", title: "Error", description: "Could not delete staff member." });
+      toast({ variant: "destructive", title: "Error", description: "Could not save status." });
       return;
     }
+
     const staffDocRef = doc(firestore, `schools/${schoolId}/staff`, selectedStaff.id);
-    deleteDocumentNonBlocking(staffDocRef);
-    toast({ title: "Staff Deleted", description: `${selectedStaff.name} has been removed.` });
-    setIsDeleteDialogOpen(false);
-    setSelectedStaff(null);
+    const dataToUpdate: Partial<Teacher> = {
+      status: currentStatus,
+      inactiveReason: currentStatus === 'Inactive' ? inactiveReason : '',
+    };
+    
+    updateDocumentNonBlocking(staffDocRef, dataToUpdate);
+    toast({ title: "Status Updated", description: `${selectedStaff.name}'s status has been updated.`});
+    setIsStatusDialogOpen(false);
   }
 
   async function onDesignationSubmit(values: z.infer<typeof designationFormSchema>) {
@@ -337,7 +361,7 @@ export default function StaffManagementPage() {
   async function confirmDeleteDesignation() {
     if (!firestore || !schoolId || !selectedDesignation) return;
     const designationDocRef = doc(firestore, `schools/${schoolId}/designations`, selectedDesignation.id);
-    deleteDocumentNonBlocking(designationDocRef);
+    //deleteDocumentNonBlocking(designationDocRef);
     toast({ title: "Designation Deleted", variant: "destructive" });
     setIsDeleteDesignationDialogOpen(false);
   }
@@ -582,6 +606,7 @@ export default function StaffManagementPage() {
                 <TableHead>Designation</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Responsibilities</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -590,7 +615,7 @@ export default function StaffManagementPage() {
             <TableBody>
               {staffLoading && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={10} className="text-center">
                     Loading staff data...
                   </TableCell>
                 </TableRow>
@@ -606,6 +631,11 @@ export default function StaffManagementPage() {
                     <TableCell>{getDesignationName(staff.designationId)}</TableCell>
                     <TableCell>{staff.contactNumber}</TableCell>
                     <TableCell>{staff.role}</TableCell>
+                     <TableCell>
+                      <Badge variant={staff.status === 'Active' ? 'default' : 'secondary'} className={staff.status === 'Active' ? 'bg-green-500 hover:bg-green-600' : ''}>
+                        {staff.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -618,7 +648,7 @@ export default function StaffManagementPage() {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleEditStaff(staff)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleViewStaff(staff)}>View Details</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteStaff(staff)}>Delete</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSetStatus(staff)}>Set Status</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -627,7 +657,7 @@ export default function StaffManagementPage() {
               ) : (
                 !staffLoading && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center">
+                    <TableCell colSpan={10} className="text-center">
                       No staff found. Add one to get started.
                     </TableCell>
                   </TableRow>
@@ -698,21 +728,36 @@ export default function StaffManagementPage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Are you sure?</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. This will permanently delete the staff record for <span className="font-semibold">{selectedStaff?.name}</span>. The associated login account will NOT be deleted.
-            </DialogDescription>
+            <DialogTitle>Change Staff Status</DialogTitle>
+            <DialogDescription>Update the status for {selectedStaff?.name}.</DialogDescription>
           </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">Status</Label>
+              <RadioGroup defaultValue={selectedStaff?.status} onValueChange={(v: 'Active' | 'Inactive') => setCurrentStatus(v)} className="col-span-3 flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Active" id="active" />
+                  <Label htmlFor="active">Active</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Inactive" id="inactive" />
+                  <Label htmlFor="inactive">Inactive</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            {currentStatus === 'Inactive' && (
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="reason" className="text-right pt-2">Reason</Label>
+                <Textarea id="reason" value={inactiveReason} onChange={(e) => setInactiveReason(e.target.value)} className="col-span-3" placeholder="Enter reason for inactivation (e.g., Left school, On leave)"/>
+              </div>
+            )}
+          </div>
           <DialogFooter>
-            <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={confirmDeleteStaff}>
-              Yes, delete staff member
-            </Button>
+            <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveStatus}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -819,10 +864,5 @@ export default function StaffManagementPage() {
     </main>
   )
 }
-
-
-
-
-
 
     
