@@ -69,7 +69,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { format, parseISO } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { sendWelcomeEmail } from "@/ai/flows/send-email-flow"
@@ -108,6 +108,8 @@ export default function StaffManagementPage() {
   const [selectedDesignation, setSelectedDesignation] = useState<Designation | null>(null);
   const [isDesignationEditMode, setIsDesignationEditMode] = useState(false);
   const [isDeleteDesignationDialogOpen, setIsDeleteDesignationDialogOpen] = useState(false);
+  const [designationSearchTerm, setDesignationSearchTerm] = useState("");
+
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -127,6 +129,13 @@ export default function StaffManagementPage() {
   const { data: staffMembers, isLoading: staffLoading } = useCollection<Teacher>(staffQuery);
   const { data: designations, isLoading: designationsLoading } = useCollection<Designation>(designationsQuery);
   const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
+
+  const filteredDesignations = useMemo(() => {
+    if (!designations) return [];
+    return designations.filter(d => 
+        d.name.toLowerCase().includes(designationSearchTerm.toLowerCase())
+    );
+  }, [designations, designationSearchTerm]);
 
 
   const staffForm = useForm<z.infer<typeof staffFormSchema>>({
@@ -733,44 +742,56 @@ export default function StaffManagementPage() {
                     </form>
                 </Form>
 
-                <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Designation Name</TableHead>
-                            <TableHead className="text-right w-[100px]">Actions</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {designationsLoading && (
-                            <TableRow>
-                            <TableCell colSpan={2} className="text-center">
-                                Loading designations...
-                            </TableCell>
-                            </TableRow>
-                        )}
-                        {!designationsLoading && designations?.length === 0 && (
-                            <TableRow>
-                            <TableCell colSpan={2} className="text-center">
-                                No designations found.
-                            </TableCell>
-                            </TableRow>
-                        )}
-                        {designations && designations.map(designation => (
-                        <TableRow key={designation.id}>
-                            <TableCell className="font-medium">{designation.name}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" onClick={() => handleEditDesignation(designation)}>
-                                    <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDesignation(designation)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                        ))}
-                        </TableBody>
-                    </Table>
+                <div className="space-y-4">
+                  <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                          type="search"
+                          placeholder="Search designations..."
+                          className="pl-8 w-full"
+                          value={designationSearchTerm}
+                          onChange={(e) => setDesignationSearchTerm(e.target.value)}
+                      />
+                  </div>
+                  <div className="rounded-md border">
+                      <Table>
+                          <TableHeader>
+                          <TableRow>
+                              <TableHead>Designation Name</TableHead>
+                              <TableHead className="text-right w-[100px]">Actions</TableHead>
+                          </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                          {designationsLoading && (
+                              <TableRow>
+                              <TableCell colSpan={2} className="text-center">
+                                  Loading designations...
+                              </TableCell>
+                              </TableRow>
+                          )}
+                          {!designationsLoading && filteredDesignations.length === 0 && (
+                              <TableRow>
+                              <TableCell colSpan={2} className="text-center">
+                                  No designations found.
+                              </TableCell>
+                              </TableRow>
+                          )}
+                          {filteredDesignations.map(designation => (
+                          <TableRow key={designation.id}>
+                              <TableCell className="font-medium">{designation.name}</TableCell>
+                              <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" onClick={() => handleEditDesignation(designation)}>
+                                      <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDesignation(designation)}>
+                                      <Trash2 className="h-4 w-4" />
+                                  </Button>
+                              </TableCell>
+                          </TableRow>
+                          ))}
+                          </TableBody>
+                      </Table>
+                  </div>
                 </div>
             </div>
             <SheetFooter>
@@ -795,4 +816,5 @@ export default function StaffManagementPage() {
     </main>
   )
 }
+
 
