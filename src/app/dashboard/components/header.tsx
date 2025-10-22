@@ -15,6 +15,7 @@ import {
   PlusCircle,
   Award,
   Building,
+  UserCog,
 } from "lucide-react"
 
 import {
@@ -27,6 +28,7 @@ import { UserNav } from "./user-nav"
 import { cn } from "@/lib/utils"
 
 const navItems = [
+  { href: "/dashboard/school-admin", icon: UserCog, label: "School Admin" },
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/add-student", icon: PlusCircle, label: "Add Student" },
   { href: "/dashboard/students", icon: Users, label: "Students" },
