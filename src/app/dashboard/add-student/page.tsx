@@ -45,7 +45,6 @@ const studentFormSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
-  currentClass: z.string().min(1, "Current Class is required"),
 });
 
 export default function AddStudentPage() {
@@ -83,7 +82,6 @@ export default function AddStudentPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
-      currentClass: "",
     },
   });
 
@@ -104,7 +102,6 @@ export default function AddStudentPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
-      currentClass: "",
     });
   }
 
@@ -125,16 +122,10 @@ export default function AddStudentPage() {
     const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
     
-    const dataToSave: Omit<Student, 'status' | 'schoolId' | 'inactiveReason' | 'classSectionId' | 'admissionClass'> & { schoolId: string, admissionClass: string } = {
+    const dataWithStatus: Omit<Student, 'currentClass' | 'classSectionId' | 'admissionClass'> & { schoolId: string, status: 'Active' } = {
         ...values,
         schoolId,
-        admissionClass: values.currentClass,
-    };
-    
-    const dataWithStatus: Student = {
-      ...dataToSave,
-      status: 'Active' as const,
-      classSectionId: '', // Initially empty, assigned in classes page
+        status: 'Active' as const,
     };
     batch.set(studentDocRef, dataWithStatus);
 
@@ -144,59 +135,20 @@ export default function AddStudentPage() {
         studentId: values.id,
         timestamp: new Date().toISOString(),
         type: 'ADMISSION',
-        description: `Admitted to Class ${values.currentClass}`,
-        details: { class: values.currentClass, academicYear: new Date().getFullYear().toString() }
+        description: `Admitted to the school.`,
+        details: { academicYear: new Date().getFullYear().toString() }
     });
 
     await batch.commit();
 
     toast({
       title: "Student Added",
-      description: `${values.fullName} has been added. You can now send them to their class section below.`,
+      description: `${values.fullName} has been added. You can now send them to their class section from the 'Classes' page.`,
     });
 
     resetForm();
   }
 
-  const handleAssignToSection = async (student: Student) => {
-      if (!firestore || !schoolId || !classSections) {
-          toast({ variant: "destructive", title: "Error", description: "Cannot assign section right now." });
-          return;
-      }
-      
-      const targetSection = classSections.find(s => s.className === student.currentClass && s.sectionIdentifier === 'A');
-
-      if (!targetSection) {
-          toast({ variant: "destructive", title: "Section Not Found", description: `Default section 'A' for class ${student.currentClass} does not exist. Please create it on the Sections page first.` });
-          return;
-      }
-      
-      const batch = writeBatch(firestore);
-
-      const studentDocRef = doc(firestore, `schools/${schoolId}/students`, student.id);
-      batch.update(studentDocRef, { classSectionId: targetSection.id });
-
-      const timelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${student.id}/timeline`));
-      const timelineEvent: Omit<StudentTimelineEvent, 'id'> = {
-          studentId: student.id,
-          timestamp: new Date().toISOString(),
-          type: 'CLASS_ASSIGNMENT',
-          description: `Assigned to Class ${targetSection.className} - Section ${targetSection.sectionIdentifier}`,
-          details: { 
-              class: targetSection.className, 
-              section: targetSection.sectionIdentifier,
-              academicYear: new Date().getFullYear().toString() 
-          }
-      };
-      batch.set(timelineEventRef, timelineEvent);
-      
-      await batch.commit();
-
-      toast({
-          title: "Student Assigned",
-          description: `${student.fullName} has been assigned to Class ${student.currentClass} - Section A.`,
-      });
-  };
   
   const classOptions = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
 
@@ -385,30 +337,6 @@ export default function AddStudentPage() {
                     </FormItem>
                   )}
                 />
-                 <FormField
-                  control={form.control}
-                  name="currentClass"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current Class</FormLabel>
-                       <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a current class" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {classOptions.map((className) => (
-                                <SelectItem key={className} value={className}>
-                                    Class {className}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
               <div className="flex justify-end gap-2 pt-6">
                 <Button variant="outline" type="button" onClick={() => router.push('/dashboard/school-admin/students')}>Cancel</Button>
@@ -421,8 +349,8 @@ export default function AddStudentPage() {
       
       <Card>
         <CardHeader>
-            <CardTitle>Students</CardTitle>
-            <CardDescription>A list of the 100 most recently added students. Assign them to a section.</CardDescription>
+            <CardTitle>Recent Admissions</CardTitle>
+            <CardDescription>A list of the 100 most recently added students.</CardDescription>
         </CardHeader>
         <CardContent>
             <Table>
@@ -430,8 +358,8 @@ export default function AddStudentPage() {
                     <TableRow>
                         <TableHead>Admission No.</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead>Current Class</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
+                        <TableHead>Admission Date</TableHead>
+                         <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -444,13 +372,10 @@ export default function AddStudentPage() {
                         <TableRow key={student.id}>
                             <TableCell>{student.admissionNumber}</TableCell>
                             <TableCell>{student.fullName}</TableCell>
-                            <TableCell>{student.currentClass}</TableCell>
+                            <TableCell>{student.admissionDate}</TableCell>
                             <TableCell className="text-right">
                                 {!student.classSectionId ? (
-                                     <Button size="sm" onClick={() => handleAssignToSection(student)}>
-                                        <Send className="mr-2 h-4 w-4" />
-                                        Send to Class
-                                    </Button>
+                                     <span className="text-sm text-blue-600 font-semibold">Unassigned</span>
                                 ) : (
                                     <span className="text-sm text-green-600 font-semibold">Assigned</span>
                                 )}

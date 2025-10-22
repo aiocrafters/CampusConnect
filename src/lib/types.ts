@@ -20,8 +20,8 @@ export interface Student {
   parentGuardianName: string;
   motherName?: string;
   admissionClass?: string;
-  currentClass: string;
-  classSectionId: string;
+  currentClass?: string;
+  classSectionId?: string;
   address: string;
   aadhaarNumber?: string;
   status: 'Active' | 'Inactive';
