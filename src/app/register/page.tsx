@@ -16,8 +16,6 @@ import { collection, query, where, getDocs, setDoc, doc, writeBatch, getDoc } fr
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, type User } from "firebase/auth";
 import { useState, useEffect } from "react";
 
-const basicClasses = ["UKG", ...Array.from({ length: 12 }, (_, i) => `${i + 1}`)];
-
 export default function RegisterPage() {
     const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
     const router = useRouter();
@@ -108,12 +106,6 @@ export default function RegisterPage() {
         }
         
         batch.set(uniqueIdRef, { schoolId: user.uid });
-
-        basicClasses.forEach(className => {
-            const classId = doc(collection(firestore, `schools/${user.uid}/masterClasses`)).id;
-            const classRef = doc(firestore, `schools/${user.uid}/masterClasses`, classId);
-            batch.set(classRef, { id: classId, schoolId: user.uid, className });
-        });
 
         batch.commit()
             .then(() => {
