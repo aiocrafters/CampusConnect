@@ -319,7 +319,7 @@ export default function ClassesAndSectionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Section Name</TableHead>
-                      <TableHead>Incharge</TableHead>
+                      <TableHead>Section Incharge</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
