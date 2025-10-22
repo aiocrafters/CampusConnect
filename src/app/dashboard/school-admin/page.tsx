@@ -1,7 +1,8 @@
+
 "use client"
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { BookUser, School as SchoolIcon, Users, BookOpenCheck, Building, ClipboardList, Award, FileText } from "lucide-react";
+import { BookUser, School as SchoolIcon, Users, BookOpenCheck, Building, ClipboardList, Award, FileText, UserCheck } from "lucide-react";
 import Link from "next/link";
 
 const adminLinks = [
@@ -12,6 +13,7 @@ const adminLinks = [
     { href: "/dashboard/school-admin/exams", icon: ClipboardList, label: "Exams" },
     { href: "/dashboard/school-admin/award-sheet", icon: Award, label: "Award Sheet" },
     { href: "/dashboard/school-admin/reports", icon: FileText, label: "Reports" },
+    { href: "/dashboard/school-admin/assigned-roles", icon: UserCheck, label: "Assigned Roles" },
 ]
 
 export default function SchoolAdminPage() {
