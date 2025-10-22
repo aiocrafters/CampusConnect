@@ -548,7 +548,7 @@ export default function StaffManagementPage() {
                         name="role"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Role / Responsibilities (for Staff Member)</FormLabel>
+                            <FormLabel>Responsibilities</FormLabel>
                             <FormControl>
                                <Input placeholder="e.g., Class Teacher, Accountant" {...field} />
                             </FormControl>
@@ -816,5 +816,6 @@ export default function StaffManagementPage() {
     </main>
   )
 }
+
 
 
