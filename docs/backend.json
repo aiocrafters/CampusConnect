@@ -614,7 +614,7 @@
           "schema": {
             "$ref": "#/backend/entities/Staff"
           },
-          "description": "Collection for staff members within a school. Includes denormalized 'schoolId' for authorization independence.",
+          "description": "Collection for all staff members within a school. Includes denormalized 'schoolId' for authorization independence.",
           "params": [
             {
               "name": "schoolId",
@@ -644,7 +644,7 @@
         "definition": {
           "entityName": "Department",
           "schema": { "$ref": "#/backend/entities/Department" },
-          "description": "Collection for staff departments within a school.",
+          "description": "Collection for staff departments within a school. Security rules should allow list and CRUD by school admins.",
           "params": [
             { "name": "schoolId", "description": "Unique identifier for the school." },
             { "name": "departmentId", "description": "Unique identifier for the department." }
