@@ -437,7 +437,7 @@ export default function AddStudentPage() {
                 />
               </div>
               <div className="flex justify-end gap-2 pt-6">
-                <Button variant="outline" type="button" onClick={() => router.push('/dashboard/students')}>Cancel</Button>
+                <Button variant="outline" type="button" onClick={() => router.push('/dashboard/school-admin/students')}>Cancel</Button>
                 <Button type="submit">Save Student</Button>
               </div>
             </form>

@@ -24,7 +24,6 @@ const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/school-admin", icon: UserCog, label: "School Admin" },
   { href: "/dashboard/add-student", icon: PlusCircle, label: "Add Student" },
-  { href: "/dashboard/students", icon: Users, label: "Students" },
 ];
 
 export function DashboardHeader() {
