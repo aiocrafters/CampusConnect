@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import type { ClassSection, MasterClass } from "@/lib/types"
+import { Badge } from "@/components/ui/badge"
 
 const classFormSchema = z.object({
   className: z.string().min(1, "Class name is required."),
@@ -219,7 +220,13 @@ export default function ClassesAndSectionsPage() {
                             <TableCell>{index + 1}</TableCell>
                             <TableCell className="font-semibold text-lg">{mc.className}</TableCell>
                             <TableCell>
-                                {sections.length > 0 ? sections.join(', ') : 'No sections'}
+                                {sections.length > 0 ? (
+                                    <div className="flex flex-col gap-1 items-start">
+                                        {sections.map(section => (
+                                            <Badge key={section} variant="secondary">{section}</Badge>
+                                        ))}
+                                    </div>
+                                ) : 'No sections'}
                             </TableCell>
                             <TableCell className="text-right">
                             <Button variant="outline" size="sm" onClick={() => handleAddSectionClick(mc)}>
@@ -303,3 +310,5 @@ export default function ClassesAndSectionsPage() {
     </main>
   );
 }
+
+    
