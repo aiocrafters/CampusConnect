@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where } from 'firestore';
 import type { Teacher, ClassSection } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -71,7 +71,7 @@ const RoleCard: React.FC<RoleCardProps> = ({ title, icon, members, isLoading, de
 );
 
 
-export default function AssignedRolesPage() {
+export default function AssignRolesPage() {
     const { user, firestore } = useFirebase();
     const schoolId = user?.uid;
 
@@ -100,7 +100,7 @@ export default function AssignedRolesPage() {
      <main className="grid flex-1 items-start gap-8 sm:px-6 sm:py-0">
         <Card>
             <CardHeader>
-                <CardTitle>Assigned Roles</CardTitle>
+                <CardTitle>Assign Roles</CardTitle>
                 <CardDescription>
                 An overview of staff members assigned to key school roles.
                 </CardDescription>

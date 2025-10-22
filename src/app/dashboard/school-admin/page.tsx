@@ -14,7 +14,7 @@ const adminLinks = [
     { href: "/dashboard/school-admin/exams", icon: ClipboardList, label: "Exams" },
     { href: "/dashboard/school-admin/award-sheet", icon: Award, label: "Award Sheet" },
     { href: "/dashboard/school-admin/reports", icon: FileText, label: "Reports" },
-    { href: "/dashboard/school-admin/assigned-roles", icon: UserCheck, label: "Assigned Roles" },
+    { href: "/dashboard/school-admin/assign-roles", icon: UserCheck, label: "Assign Roles" },
 ]
 
 export default function SchoolAdminPage() {
