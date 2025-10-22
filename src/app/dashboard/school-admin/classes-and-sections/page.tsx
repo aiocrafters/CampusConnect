@@ -41,11 +41,17 @@ export default function ClassesAndSectionsPage() {
   }, [firestore, schoolId]);
   const { data: masterClasses, isLoading: masterClassesLoading } = useCollection<MasterClass>(masterClassesQuery);
 
-  const classSectionsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId || !selectedClass) return null;
-    return query(collection(firestore, `schools/${schoolId}/classSections`), where("className", "==", selectedClass.className));
-  }, [firestore, schoolId, selectedClass]);
-  const { data: sectionsForSelectedClass, isLoading: sectionsLoading } = useCollection<ClassSection>(classSectionsQuery);
+  const allClassSectionsQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/classSections`));
+  }, [firestore, schoolId]);
+  const { data: allClassSections, isLoading: allSectionsLoading } = useCollection<ClassSection>(allClassSectionsQuery);
+  
+  const sectionsForSelectedClass = useMemo(() => {
+    if (!allClassSections || !selectedClass) return [];
+    return allClassSections.filter(s => s.className === selectedClass.className);
+  }, [allClassSections, selectedClass]);
+
 
   // Forms
   const classForm = useForm<z.infer<typeof classFormSchema>>({
@@ -142,6 +148,14 @@ export default function ClassesAndSectionsPage() {
     toast({ variant: "destructive", title: "Section Deleted" });
   }
 
+  const getSectionsForClass = (className: string) => {
+    if (!allClassSections) return [];
+    return allClassSections
+        .filter(s => s.className === className)
+        .map(s => s.sectionIdentifier)
+        .sort();
+  }
+
   return (
     <main className="grid flex-1 items-start gap-8 sm:px-6 sm:py-0">
       <div className="grid lg:grid-cols-2 gap-8">
@@ -187,27 +201,34 @@ export default function ClassesAndSectionsPage() {
                 <TableRow>
                   <TableHead>Serial No.</TableHead>
                   <TableHead>Class Name</TableHead>
+                  <TableHead>Sections</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {masterClassesLoading && (
-                  <TableRow><TableCell colSpan={3} className="text-center">Loading classes...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center">Loading classes...</TableCell></TableRow>
                 )}
                 {!masterClassesLoading && sortedMasterClasses.length === 0 && (
-                  <TableRow><TableCell colSpan={3} className="text-center">No classes found. Add one to get started.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center">No classes found. Add one to get started.</TableCell></TableRow>
                 )}
-                {sortedMasterClasses.map((mc, index) => (
-                  <TableRow key={mc.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-semibold text-lg">{mc.className}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => handleAddSectionClick(mc)}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Manage Sections
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sortedMasterClasses.map((mc, index) => {
+                    const sections = getSectionsForClass(mc.className);
+                    return (
+                        <TableRow key={mc.id}>
+                            <TableCell>{index + 1}</TableCell>
+                            <TableCell className="font-semibold text-lg">{mc.className}</TableCell>
+                            <TableCell>
+                                {sections.length > 0 ? sections.join(', ') : 'No sections'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => handleAddSectionClick(mc)}>
+                                <PlusCircle className="h-4 w-4 mr-2" /> Manage Sections
+                            </Button>
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
               </TableBody>
             </Table>
           </div>
@@ -255,8 +276,8 @@ export default function ClassesAndSectionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sectionsLoading && <TableRow><TableCell colSpan={2} className="text-center">Loading...</TableCell></TableRow>}
-                    {!sectionsLoading && sectionsForSelectedClass?.length === 0 && <TableRow><TableCell colSpan={2} className="text-center">No sections yet.</TableCell></TableRow>}
+                    {allSectionsLoading && <TableRow><TableCell colSpan={2} className="text-center">Loading...</TableCell></TableRow>}
+                    {!allSectionsLoading && sectionsForSelectedClass?.length === 0 && <TableRow><TableCell colSpan={2} className="text-center">No sections yet.</TableCell></TableRow>}
                     {sectionsForSelectedClass?.map(sec => (
                         <TableRow key={sec.id}>
                             <TableCell>{sec.sectionIdentifier}</TableCell>
