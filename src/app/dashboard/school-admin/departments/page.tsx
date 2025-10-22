@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, writeBatch } from "firebase/firestore"
+import { collection, query, doc } from "firebase/firestore"
 import { PlusCircle, Edit, Trash2 } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -45,55 +45,6 @@ const departmentFormSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-const defaultDepartments: Omit<Department, 'id' | 'schoolId'>[] = [
-    // Academic
-    { name: 'Academic Departments', type: 'Academic', isDefault: true },
-    { name: 'English', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'Mathematics', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'Science', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'Social Studies', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'ICT', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'Arts', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'Physical Education', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    { name: 'Business', type: 'Academic', parentId: 'academic_root', isDefault: true },
-    
-    // Non-Academic
-    { name: 'Administrative Departments', type: 'Non-Academic', isDefault: true },
-    { name: 'Principal’s Office', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
-    { name: 'Vice Principal’s Office', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
-    { name: 'Finance', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
-    { name: 'Human Resources', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
-    { name: 'Records & Examinations', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
-    { name: 'Administration Office', type: 'Non-Academic', parentId: 'administrative_root', isDefault: true },
-
-    { name: 'Student Support Departments', type: 'Non-Academic', isDefault: true },
-    { name: 'Guidance & Counseling', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
-    { name: 'Health Services', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
-    { name: 'Library', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
-    { name: 'Special Education', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
-    { name: 'Student Affairs', type: 'Non-Academic', parentId: 'student_support_root', isDefault: true },
-
-    { name: 'Operational & Maintenance Departments', type: 'Non-Academic', isDefault: true },
-    { name: 'Facilities & Maintenance', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
-    { name: 'Security', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
-    { name: 'Transport', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
-    { name: 'Cafeteria', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
-    { name: 'Cleaning & Sanitation', type: 'Non-Academic', parentId: 'operational_root', isDefault: true },
-
-    { name: 'ICT & Innovation Departments', type: 'Non-Academic', isDefault: true },
-    { name: 'Computer Science', type: 'Non-Academic', parentId: 'ict_root', isDefault: true },
-    { name: 'Educational Technology', type: 'Non-Academic', parentId: 'ict_root', isDefault: true },
-    { name: 'IT Support', type: 'Non-Academic', parentId: 'ict_root', isDefault: true },
-];
-
-const rootMapping: { [key: string]: string } = {
-    'academic_root': 'Academic Departments',
-    'administrative_root': 'Administrative Departments',
-    'student_support_root': 'Student Support Departments',
-    'operational_root': 'Operational & Maintenance Departments',
-    'ict_root': 'ICT & Innovation Departments',
-};
-
 export default function DepartmentsPage() {
   const { user, firestore } = useFirebase();
   const schoolId = user?.uid;
@@ -104,7 +55,6 @@ export default function DepartmentsPage() {
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [parentForNewSubDept, setParentForNewSubDept] = useState<Department | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
 
   // Data fetching
   const departmentsQuery = useMemoFirebase(() => {
@@ -112,59 +62,6 @@ export default function DepartmentsPage() {
     return query(collection(firestore, `schools/${schoolId}/departments`));
   }, [firestore, schoolId]);
   const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
-
-  useEffect(() => {
-    if (departmentsLoading) {
-      setIsInitializing(true);
-      return;
-    }
-  
-    if (departments && departments.length === 0 && firestore && schoolId) {
-      const initializeDepartments = async () => {
-        const batch = writeBatch(firestore);
-        
-        const rootDeptIds: { [key: string]: string } = {};
-
-        // First pass: create root departments and get their IDs
-        defaultDepartments.forEach(dept => {
-            if (!dept.parentId) {
-                const deptRef = doc(collection(firestore, `schools/${schoolId}/departments`));
-                rootDeptIds[dept.name] = deptRef.id;
-                batch.set(deptRef, { ...dept, id: deptRef.id, schoolId });
-            }
-        });
-
-        // Second pass: create sub-departments with correct parentId
-        defaultDepartments.forEach(dept => {
-            if (dept.parentId) {
-                const parentName = rootMapping[dept.parentId];
-                const parentId = rootDeptIds[parentName];
-                if (parentId) {
-                    const deptRef = doc(collection(firestore, `schools/${schoolId}/departments`));
-                    batch.set(deptRef, { ...dept, id: deptRef.id, schoolId, parentId });
-                }
-            }
-        });
-        
-        try {
-          await batch.commit();
-          toast({
-            title: "Departments Initialized",
-            description: "Default departments have been added to your school.",
-          });
-        } catch (error) {
-           console.error("Error initializing departments:", error);
-           toast({
-              variant: "destructive",
-              title: "Initialization Failed",
-              description: "Could not add default departments.",
-           });
-        }
-      };
-      initializeDepartments();
-    }
-    setIsInitializing(false);
-  }, [departmentsLoading, departments, firestore, schoolId, toast]);
 
   const form = useForm<z.infer<typeof departmentFormSchema>>({
     resolver: zodResolver(departmentFormSchema),
@@ -329,8 +226,6 @@ export default function DepartmentsPage() {
     </div>
   );
 
-  const isLoading = departmentsLoading || isInitializing;
-
   return (
     <main className="grid flex-1 items-start gap-4 sm:px-6 sm:py-0 md:gap-8">
       <Card>
@@ -349,13 +244,13 @@ export default function DepartmentsPage() {
           </Button>
         </CardHeader>
         <CardContent>
-            {isLoading && <p className="text-center py-8">Loading departments...</p>}
-            {!isLoading && departments?.length === 0 && (
+            {departmentsLoading && <p className="text-center py-8">Loading departments...</p>}
+            {!departmentsLoading && departments?.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
                     No departments found. Add one to get started.
                 </div>
             )}
-            {!isLoading && departments && departments.length > 0 && (
+            {!departmentsLoading && departments && departments.length > 0 && (
                 <>
                   {renderDepartmentAccordion(academicDepartments, "Academic Departments")}
                   <Separator className="my-6" />
