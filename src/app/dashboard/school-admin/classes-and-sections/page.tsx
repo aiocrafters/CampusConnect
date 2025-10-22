@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -164,6 +165,7 @@ export default function ClassesAndSectionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Serial No.</TableHead>
                   <TableHead>Class Name</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -175,8 +177,9 @@ export default function ClassesAndSectionsPage() {
                 {!masterClassesLoading && masterClasses?.length === 0 && (
                   <TableRow><TableCell colSpan={3} className="text-center">No classes found. Add one to get started.</TableCell></TableRow>
                 )}
-                {masterClasses?.map(mc => (
+                {masterClasses?.map((mc, index) => (
                   <TableRow key={mc.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-semibold text-lg">{mc.className}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => handleAddSectionClick(mc)}>
@@ -227,7 +230,7 @@ export default function ClassesAndSectionsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Section</TableHead>
+                      <TableHead>Section Name</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
