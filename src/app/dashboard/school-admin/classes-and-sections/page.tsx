@@ -2,10 +2,10 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, where } from "firebase/firestore"
+import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { collection, query, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { PlusCircle, Trash2 } from "lucide-react"
+import { PlusCircle, Trash2, Edit } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import type { ClassSection, MasterClass } from "@/lib/types"
+import type { ClassSection, MasterClass, Teacher } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 const classFormSchema = z.object({
   className: z.string().min(1, "Class name is required."),
@@ -25,6 +26,7 @@ const classFormSchema = z.object({
 
 const sectionFormSchema = z.object({
   sectionIdentifier: z.string().min(1, "Section is required."),
+  sectionInchargeId: z.string().optional(),
 });
 
 export default function ClassesAndSectionsPage() {
@@ -48,6 +50,12 @@ export default function ClassesAndSectionsPage() {
   }, [firestore, schoolId]);
   const { data: allClassSections, isLoading: allSectionsLoading } = useCollection<ClassSection>(allClassSectionsQuery);
   
+  const staffQuery = useMemoFirebase(() => {
+    if (!firestore || !schoolId) return null;
+    return query(collection(firestore, `schools/${schoolId}/staff`));
+  }, [firestore, schoolId]);
+  const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(staffQuery);
+
   const sectionsForSelectedClass = useMemo(() => {
     if (!allClassSections || !selectedClass) return [];
     return allClassSections.filter(s => s.className === selectedClass.className);
@@ -62,7 +70,7 @@ export default function ClassesAndSectionsPage() {
 
   const sectionForm = useForm<z.infer<typeof sectionFormSchema>>({
     resolver: zodResolver(sectionFormSchema),
-    defaultValues: { sectionIdentifier: "" },
+    defaultValues: { sectionIdentifier: "", sectionInchargeId: "none" },
   });
   
   const sortedMasterClasses = useMemo(() => {
@@ -97,7 +105,7 @@ export default function ClassesAndSectionsPage() {
   
   useEffect(() => {
     if (isSectionDialogOpen) {
-      sectionForm.reset({ sectionIdentifier: nextSectionIdentifier });
+      sectionForm.reset({ sectionIdentifier: nextSectionIdentifier, sectionInchargeId: "none" });
     }
   }, [isSectionDialogOpen, nextSectionIdentifier, sectionForm]);
 
@@ -126,16 +134,17 @@ export default function ClassesAndSectionsPage() {
     const sectionId = doc(collection(firestore, `schools/${schoolId}/classSections`)).id;
     const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, sectionId);
 
-    const newSection: Omit<ClassSection, 'sectionName' | 'sectionInchargeId'> = {
+    const newSection: Omit<ClassSection, 'sectionName'> = {
         id: sectionId,
         schoolId,
         className: selectedClass.className,
         sectionIdentifier: values.sectionIdentifier,
+        sectionInchargeId: values.sectionInchargeId === 'none' ? '' : values.sectionInchargeId,
     };
 
     setDocumentNonBlocking(sectionDocRef, newSection, { merge: false });
     toast({ title: "Section Added", description: `Section ${values.sectionIdentifier} added to Class ${selectedClass.className}.` });
-    sectionForm.setValue('sectionIdentifier', nextSectionIdentifier); // Reset for next entry
+    sectionForm.reset({ sectionIdentifier: nextSectionIdentifier, sectionInchargeId: "none" });
   };
   
   const handleAddSectionClick = (masterClass: MasterClass) => {
@@ -149,13 +158,24 @@ export default function ClassesAndSectionsPage() {
     toast({ variant: "destructive", title: "Section Deleted" });
   }
 
+  const handleSectionInchargeChange = (sectionId: string, inchargeId: string) => {
+    if (!firestore || !schoolId) return;
+    const sectionDocRef = doc(firestore, `schools/${schoolId}/classSections`, sectionId);
+    updateDocumentNonBlocking(sectionDocRef, { sectionInchargeId: inchargeId === 'none' ? '' : inchargeId });
+    toast({ title: "Incharge Updated", description: "The section incharge has been updated." });
+  };
+
   const getSectionsForClass = (className: string) => {
     if (!allClassSections) return [];
     return allClassSections
         .filter(s => s.className === className)
-        .map(s => s.sectionIdentifier)
-        .sort();
+        .sort((a, b) => a.sectionIdentifier.localeCompare(b.sectionIdentifier));
   }
+
+  const getTeacherName = (teacherId?: string) => {
+    if (!teachers || !teacherId) return "Not Assigned";
+    return teachers.find(t => t.id === teacherId)?.name || "Not Assigned";
+  };
 
   return (
     <main className="grid flex-1 items-start gap-8 sm:px-6 sm:py-0">
@@ -223,7 +243,7 @@ export default function ClassesAndSectionsPage() {
                                 {sections.length > 0 ? (
                                     <div className="flex flex-col gap-1 items-start">
                                         {sections.map(section => (
-                                            <Badge key={section} variant="secondary">{section}</Badge>
+                                            <Badge key={section.id} variant="secondary">{section.sectionIdentifier}</Badge>
                                         ))}
                                     </div>
                                 ) : 'No sections'}
@@ -243,7 +263,7 @@ export default function ClassesAndSectionsPage() {
       </Card>
       
       <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Manage Sections for Class {selectedClass?.className}</DialogTitle>
             <DialogDescription>Add or remove sections for this class.</DialogDescription>
@@ -252,17 +272,37 @@ export default function ClassesAndSectionsPage() {
             <div>
               <h4 className="font-medium mb-2">Add New Section</h4>
                <Form {...sectionForm}>
-                <form onSubmit={sectionForm.handleSubmit(handleSectionSubmit)} className="flex items-end gap-2">
+                <form onSubmit={sectionForm.handleSubmit(handleSectionSubmit)} className="grid grid-cols-1 md:grid-cols-3 items-end gap-2">
                   <FormField
                     control={sectionForm.control}
                     name="sectionIdentifier"
                     render={({ field }) => (
-                      <FormItem className="flex-grow">
+                      <FormItem>
                         <FormLabel>Section Identifier</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., A" {...field} />
                         </FormControl>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={sectionForm.control}
+                    name="sectionInchargeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Section Incharge</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                          <FormControl>
+                            <SelectTrigger disabled={teachersLoading}>
+                              <SelectValue placeholder={teachersLoading ? 'Loading...' : 'Select Teacher'} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">Not Assigned</SelectItem>
+                            {teachers?.map(teacher => <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </FormItem>
                     )}
                   />
@@ -279,15 +319,31 @@ export default function ClassesAndSectionsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Section Name</TableHead>
+                      <TableHead>Incharge</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allSectionsLoading && <TableRow><TableCell colSpan={2} className="text-center">Loading...</TableCell></TableRow>}
-                    {!allSectionsLoading && sectionsForSelectedClass?.length === 0 && <TableRow><TableCell colSpan={2} className="text-center">No sections yet.</TableCell></TableRow>}
+                    {allSectionsLoading && <TableRow><TableCell colSpan={3} className="text-center">Loading...</TableCell></TableRow>}
+                    {!allSectionsLoading && sectionsForSelectedClass?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center">No sections yet.</TableCell></TableRow>}
                     {sectionsForSelectedClass?.map(sec => (
                         <TableRow key={sec.id}>
                             <TableCell>{sec.sectionIdentifier}</TableCell>
+                            <TableCell>
+                                <Select 
+                                    value={sec.sectionInchargeId || 'none'} 
+                                    onValueChange={(value) => handleSectionInchargeChange(sec.id, value)}
+                                    disabled={teachersLoading}
+                                >
+                                    <SelectTrigger className="w-[200px]">
+                                        <SelectValue placeholder={teachersLoading ? 'Loading...' : 'Select Teacher'} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Not Assigned</SelectItem>
+                                        {teachers?.map(teacher => <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </TableCell>
                             <TableCell className="text-right">
                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteSection(sec)}>
                                     <Trash2 className="h-4 w-4" />
@@ -310,5 +366,3 @@ export default function ClassesAndSectionsPage() {
     </main>
   );
 }
-
-    
