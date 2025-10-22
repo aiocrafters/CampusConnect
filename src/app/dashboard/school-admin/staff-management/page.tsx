@@ -221,12 +221,14 @@ export default function StaffManagementPage() {
   const handleAddNewDesignation = () => {
     setIsDesignationEditMode(false);
     setSelectedDesignation(null);
+    designationForm.reset({ name: "" });
     setIsDesignationSheetOpen(true);
   };
 
   const handleEditDesignation = (designation: Designation) => {
     setIsDesignationEditMode(true);
     setSelectedDesignation(designation);
+    designationForm.reset({ name: designation.name });
     setIsDesignationSheetOpen(true);
   };
 
@@ -318,7 +320,9 @@ export default function StaffManagementPage() {
       setDocumentNonBlocking(designationDocRef, data);
       toast({ title: "Designation Added" });
     }
-    setIsDesignationSheetOpen(false);
+    designationForm.reset({name: ""});
+    setIsDesignationEditMode(false);
+    setSelectedDesignation(null);
   }
 
   async function confirmDeleteDesignation() {
@@ -361,7 +365,7 @@ export default function StaffManagementPage() {
             <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleAddNewDesignation}>
               <PlusCircle className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Add Designation
+                Manage Designations
               </span>
             </Button>
             <Sheet open={isStaffSheetOpen} onOpenChange={setIsStaffSheetOpen}>
@@ -622,52 +626,6 @@ export default function StaffManagementPage() {
         </CardContent>
       </Card>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Designations</CardTitle>
-          <CardDescription>Manage staff designations for your school.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Designation Name</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {designationsLoading && (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center">
-                    Loading designations...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!designationsLoading && designations?.length === 0 && (
-                 <TableRow>
-                  <TableCell colSpan={2} className="text-center">
-                    No designations found. Add one to get started.
-                  </TableCell>
-                </TableRow>
-              )}
-              {designations && designations.map(designation => (
-              <TableRow key={designation.id}>
-                <TableCell className="font-medium">{designation.name}</TableCell>
-                <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditDesignation(designation)}>
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDesignation(designation)}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </TableCell>
-              </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -751,15 +709,18 @@ export default function StaffManagementPage() {
         <SheetContent>
             <SheetHeader>
                 <SheetTitle>{isDesignationEditMode ? 'Edit Designation' : 'Add New Designation'}</SheetTitle>
+                 <SheetDescription>
+                    {isDesignationEditMode ? "Update the designation name." : "Manage all staff designations for your school."}
+                </SheetDescription>
             </SheetHeader>
-            <Form {...designationForm}>
-                <form onSubmit={designationForm.handleSubmit(onDesignationSubmit)} className="flex flex-col h-full">
-                    <div className="grid gap-4 py-4">
+            <div className="py-4 space-y-8">
+                <Form {...designationForm}>
+                    <form onSubmit={designationForm.handleSubmit(onDesignationSubmit)} className="flex items-end gap-2">
                         <FormField
                             control={designationForm.control}
                             name="name"
                             render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="flex-grow">
                                     <FormLabel>Designation Name</FormLabel>
                                     <FormControl>
                                         <Input placeholder="e.g., Principal, Accountant" {...field} />
@@ -768,13 +729,53 @@ export default function StaffManagementPage() {
                                 </FormItem>
                             )}
                         />
-                    </div>
-                    <SheetFooter className="mt-auto">
-                        <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
-                        <Button type="submit">{isDesignationEditMode ? 'Save Changes' : 'Add Designation'}</Button>
-                    </SheetFooter>
-                </form>
-            </Form>
+                         <Button type="submit">{isDesignationEditMode ? 'Save' : 'Add'}</Button>
+                    </form>
+                </Form>
+
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Designation Name</TableHead>
+                            <TableHead className="text-right w-[100px]">Actions</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {designationsLoading && (
+                            <TableRow>
+                            <TableCell colSpan={2} className="text-center">
+                                Loading designations...
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        {!designationsLoading && designations?.length === 0 && (
+                            <TableRow>
+                            <TableCell colSpan={2} className="text-center">
+                                No designations found.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        {designations && designations.map(designation => (
+                        <TableRow key={designation.id}>
+                            <TableCell className="font-medium">{designation.name}</TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditDesignation(designation)}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteDesignation(designation)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+            <SheetFooter>
+                <SheetClose asChild><Button variant="outline">Close</Button></SheetClose>
+            </SheetFooter>
         </SheetContent>
       </Sheet>
 
@@ -795,4 +796,3 @@ export default function StaffManagementPage() {
   )
 }
 
-    
