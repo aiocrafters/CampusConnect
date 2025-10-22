@@ -58,7 +58,9 @@ export default function ClassesAndSectionsPage() {
 
   const sectionsForSelectedClass = useMemo(() => {
     if (!allClassSections || !selectedClass) return [];
-    return allClassSections.filter(s => s.className === selectedClass.className);
+    return allClassSections
+        .filter(s => s.className === selectedClass.className)
+        .sort((a,b) => a.sectionIdentifier.localeCompare(b.sectionIdentifier));
   }, [allClassSections, selectedClass]);
 
 
@@ -172,8 +174,8 @@ export default function ClassesAndSectionsPage() {
         .sort((a, b) => a.sectionIdentifier.localeCompare(b.sectionIdentifier));
   }
 
-  const getTeacherName = (teacherId?: string) => {
-    if (!teachers || !teacherId) return "Not Assigned";
+  const getTeacherName = (teacherId?: string): string => {
+    if (!teachers || !teacherId || teacherId === 'none') return "Not Assigned";
     return teachers.find(t => t.id === teacherId)?.name || "Not Assigned";
   };
 
@@ -223,15 +225,16 @@ export default function ClassesAndSectionsPage() {
                   <TableHead>Serial No.</TableHead>
                   <TableHead>Class Name</TableHead>
                   <TableHead>Sections</TableHead>
+                  <TableHead>Section Incharges</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {masterClassesLoading && (
-                  <TableRow><TableCell colSpan={4} className="text-center">Loading classes...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center">Loading classes...</TableCell></TableRow>
                 )}
                 {!masterClassesLoading && sortedMasterClasses.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center">No classes found. Add one to get started.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center">No classes found. Add one to get started.</TableCell></TableRow>
                 )}
                 {sortedMasterClasses.map((mc, index) => {
                     const sections = getSectionsForClass(mc.className);
@@ -247,6 +250,15 @@ export default function ClassesAndSectionsPage() {
                                         ))}
                                     </div>
                                 ) : 'No sections'}
+                            </TableCell>
+                             <TableCell>
+                                {sections.length > 0 ? (
+                                    <div className="flex flex-col gap-1 items-start text-xs text-muted-foreground">
+                                        {sections.map(section => (
+                                            <span key={section.id}>{getTeacherName(section.sectionInchargeId)}</span>
+                                        ))}
+                                    </div>
+                                ) : '-'}
                             </TableCell>
                             <TableCell className="text-right">
                             <Button variant="outline" size="sm" onClick={() => handleAddSectionClick(mc)}>
@@ -366,3 +378,5 @@ export default function ClassesAndSectionsPage() {
     </main>
   );
 }
+
+    
