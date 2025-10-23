@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, query, doc, where } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { PlusCircle, Trash2 } from "lucide-react"
+import { PlusCircle, Trash2, Edit } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -37,15 +37,20 @@ export default function ClassesAndSectionsPage() {
   // Data Fetching
   const allClassSectionsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/classSections`), where("className", "==", selectedClass || ""));
-  }, [firestore, schoolId, selectedClass]);
-  const { data: sectionsForSelectedClass, isLoading: allSectionsLoading } = useCollection<ClassSection>(allClassSectionsQuery);
+    return query(collection(firestore, `schools/${schoolId}/classSections`));
+  }, [firestore, schoolId]);
+  const { data: allClassSections, isLoading: allSectionsLoading } = useCollection<ClassSection>(allClassSectionsQuery);
   
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
     return query(collection(firestore, `schools/${schoolId}/staff`));
   }, [firestore, schoolId]);
   const { data: teachers, isLoading: teachersLoading } = useCollection<Teacher>(staffQuery);
+  
+  const sectionsForSelectedClass = useMemo(() => {
+    if (!selectedClass || !allClassSections) return [];
+    return allClassSections.filter(s => s.className === selectedClass);
+  }, [selectedClass, allClassSections]);
 
   // Forms
   const sectionForm = useForm<z.infer<typeof sectionFormSchema>>({
@@ -54,14 +59,15 @@ export default function ClassesAndSectionsPage() {
   });
 
   const nextSectionIdentifier = useMemo(() => {
-    if (!sectionsForSelectedClass) return "A";
-    const existingIdentifiers = sectionsForSelectedClass.map(s => s.sectionIdentifier);
+    const currentSections = selectedClass ? sectionsForSelectedClass : [];
+    if (!currentSections) return "A";
+    const existingIdentifiers = currentSections.map(s => s.sectionIdentifier);
     for (let i = 0; i < 26; i++) {
         const identifier = String.fromCharCode(65 + i); // A, B, C...
         if (!existingIdentifiers.includes(identifier)) return identifier;
     }
     return "Z";
-  }, [sectionsForSelectedClass]);
+  }, [sectionsForSelectedClass, selectedClass]);
   
   useEffect(() => {
     if (isSectionDialogOpen) {
@@ -87,6 +93,7 @@ export default function ClassesAndSectionsPage() {
 
     setDocumentNonBlocking(sectionDocRef, newSection, { merge: false });
     toast({ title: "Section Added", description: `Section ${values.sectionIdentifier} added to Class ${selectedClass}.` });
+    setIsSectionDialogOpen(false);
     sectionForm.reset({ sectionIdentifier: nextSectionIdentifier, sectionInchargeId: "none" });
   };
   
@@ -143,13 +150,13 @@ export default function ClassesAndSectionsPage() {
           </div>
           
           {selectedClass && (
-            <div>
+            <div className="mb-8">
               <h3 className="text-lg font-semibold mb-2">Sections for Class {selectedClass}</h3>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Section Name</TableHead>
+                      <TableHead>Section</TableHead>
                       <TableHead>Section Incharge</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
@@ -187,6 +194,38 @@ export default function ClassesAndSectionsPage() {
               </div>
             </div>
           )}
+
+            <div>
+              <h3 className="text-lg font-semibold mb-2">All School Sections</h3>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Class Name</TableHead>
+                      <TableHead>Section</TableHead>
+                      <TableHead>Section Incharge</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(allSectionsLoading || teachersLoading) && <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>}
+                    {!allSectionsLoading && allClassSections?.length === 0 && <TableRow><TableCell colSpan={4} className="text-center">No sections found in the school.</TableCell></TableRow>}
+                    {allClassSections?.sort((a,b) => a.className.localeCompare(b.className) || a.sectionIdentifier.localeCompare(b.sectionIdentifier)).map(sec => (
+                        <TableRow key={sec.id}>
+                            <TableCell className="font-medium">{sec.className}</TableCell>
+                            <TableCell>{sec.sectionIdentifier}</TableCell>
+                            <TableCell>{getTeacherName(sec.sectionInchargeId)}</TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteSection(sec)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
         </CardContent>
       </Card>
       
