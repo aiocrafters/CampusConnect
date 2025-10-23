@@ -11,7 +11,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
@@ -140,6 +140,10 @@ export default function ClassesAndSectionsPage() {
     return grouped;
   }, [allClassSections]);
 
+  const totalClassesWithSections = Object.keys(sectionsByClass).length;
+  const totalSections = allClassSections?.length || 0;
+  const totalIncharges = allClassSections?.filter(s => s.sectionInchargeId).length || 0;
+
   return (
     <main className="grid flex-1 items-start gap-8 sm:px-6 sm:py-0">
       <Card>
@@ -256,6 +260,14 @@ export default function ClassesAndSectionsPage() {
                         )
                     })}
                   </TableBody>
+                  <TableFooter>
+                    <TableRow className="font-semibold">
+                        <TableCell>Total</TableCell>
+                        <TableCell>{totalClassesWithSections}</TableCell>
+                        <TableCell>{totalSections}</TableCell>
+                        <TableCell>{totalIncharges}</TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
           </CardContent>
@@ -315,5 +327,3 @@ export default function ClassesAndSectionsPage() {
     </main>
   );
 }
-
-    
