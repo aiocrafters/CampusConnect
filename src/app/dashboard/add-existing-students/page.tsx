@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -224,7 +225,7 @@ export default function AddExistingStudentPage() {
                       )}
                     />
                     <FormItem>
-                        <FormLabel>Current Class</FormLabel>
+                        <FormLabel>Admission Class</FormLabel>
                         <Select onValueChange={(value) => {
                             setSelectedClass(value);
                             form.setValue('classSectionId', '');

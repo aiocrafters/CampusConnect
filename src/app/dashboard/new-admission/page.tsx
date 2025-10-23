@@ -225,7 +225,7 @@ export default function NewAdmissionPage() {
                       )}
                     />
                     <FormItem>
-                        <FormLabel>Current Class</FormLabel>
+                        <FormLabel>Admission Class</FormLabel>
                         <Select onValueChange={(value) => {
                             setSelectedClass(value);
                             form.setValue('classSectionId', '');
