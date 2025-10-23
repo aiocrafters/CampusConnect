@@ -228,23 +228,33 @@ export default function ClassesAndSectionsPage() {
                   </TableHeader>
                   <TableBody>
                     {(allSectionsLoading || teachersLoading) && <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>}
-                    {!allSectionsLoading && Object.keys(sectionsByClass).length === 0 && <TableRow><TableCell colSpan={4} className="text-center">No sections found in the school.</TableCell></TableRow>}
-                    {Object.keys(sectionsByClass).sort((a,b) => (defaultClasses.indexOf(a) || 99) - (defaultClasses.indexOf(b) || 99)).map((className, index) => (
-                        <TableRow key={className}>
-                            <TableCell>{index + 1}</TableCell>
-                            <TableCell className="font-medium">{className}</TableCell>
-                            <TableCell>
-                                {sectionsByClass[className].map(sec => (
-                                    <div key={sec.id} className="py-1">{sec.sectionIdentifier}</div>
-                                ))}
-                            </TableCell>
-                            <TableCell>
-                                {sectionsByClass[className].map(sec => (
-                                    <div key={sec.id} className="py-1">{getTeacherName(sec.sectionInchargeId)}</div>
-                                ))}
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {!allSectionsLoading && defaultClasses.map((className, index) => {
+                        const classSections = sectionsByClass[className] || [];
+                        return (
+                            <TableRow key={className}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell className="font-medium">{className}</TableCell>
+                                <TableCell>
+                                    {classSections.length > 0 ? (
+                                        classSections.map(sec => (
+                                            <div key={sec.id} className="py-1">{sec.sectionIdentifier}</div>
+                                        ))
+                                    ) : (
+                                        <div className="py-1 text-muted-foreground">No sections yet</div>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {classSections.length > 0 ? (
+                                        classSections.map(sec => (
+                                            <div key={sec.id} className="py-1">{getTeacherName(sec.sectionInchargeId)}</div>
+                                        ))
+                                     ) : (
+                                        <div className="py-1 text-muted-foreground">-</div>
+                                     )}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -305,3 +315,5 @@ export default function ClassesAndSectionsPage() {
     </main>
   );
 }
+
+    
