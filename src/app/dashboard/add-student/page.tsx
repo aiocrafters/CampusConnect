@@ -28,7 +28,6 @@ import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect, useMemo } from "react"
 import { format } from 'date-fns';
 import { useRouter } from "next/navigation"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const studentFormSchema = z.object({
   id: z.string().min(1, "Student ID is required."),
@@ -54,12 +53,6 @@ export default function AddStudentPage() {
   const router = useRouter();
   
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-
-  const recentStudentsQuery = useMemoFirebase(() => {
-    if (!firestore || !schoolId) return null;
-    return query(collection(firestore, `schools/${schoolId}/students`), orderBy("admissionNumber", "desc"), limit(100));
-  }, [firestore, schoolId]);
-  const { data: recentStudents, isLoading: recentStudentsLoading } = useCollection<Student>(recentStudentsQuery);
 
   const classSectionsQuery = useMemoFirebase(() => {
     if (!firestore || !schoolId) return null;
@@ -426,53 +419,6 @@ export default function AddStudentPage() {
           </Form>
         </CardContent>
       </Card>
-      
-      <Card>
-        <CardHeader>
-            <CardTitle>Recent Admissions</CardTitle>
-            <CardDescription>A list of the 100 most recently added students.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Admission No.</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Admission Date</TableHead>
-                         <TableHead className="text-right">Status</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {recentStudentsLoading && Array.from({length: 5}).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell colSpan={4} className="text-center">Loading...</TableCell>
-                        </TableRow>
-                    ))}
-                    {recentStudents && recentStudents.map((student) => (
-                        <TableRow key={student.id}>
-                            <TableCell>{student.admissionNumber}</TableCell>
-                            <TableCell>{student.fullName}</TableCell>
-                            <TableCell>{student.admissionDate}</TableCell>
-                            <TableCell className="text-right">
-                                {!student.classSectionId ? (
-                                     <span className="text-sm text-blue-600 font-semibold">Unassigned</span>
-                                ) : (
-                                    <span className="text-sm text-green-600 font-semibold">Assigned</span>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                     {recentStudents?.length === 0 && !recentStudentsLoading && (
-                        <TableRow>
-                            <TableCell colSpan={4} className="text-center">No recent students found.</TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
     </main>
   )
 }
-
-    
