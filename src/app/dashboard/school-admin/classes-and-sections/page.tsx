@@ -126,6 +126,19 @@ export default function ClassesAndSectionsPage() {
     if (!teachers || !teacherId || teacherId === 'none') return "Not Assigned";
     return teachers.find(t => t.id === teacherId)?.name || "Not Assigned";
   };
+  
+  const sectionsByClass = useMemo(() => {
+    if (!allClassSections) return {};
+    const grouped: { [key: string]: ClassSection[] } = {};
+    for (const section of allClassSections) {
+      if (!grouped[section.className]) {
+        grouped[section.className] = [];
+      }
+      grouped[section.className].push(section);
+      grouped[section.className].sort((a, b) => a.sectionIdentifier.localeCompare(b.sectionIdentifier));
+    }
+    return grouped;
+  }, [allClassSections]);
 
   return (
     <main className="grid flex-1 items-start gap-8 sm:px-6 sm:py-0">
@@ -207,19 +220,29 @@ export default function ClassesAndSectionsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[80px]">Serial</TableHead>
                       <TableHead>Class Name</TableHead>
                       <TableHead>Section</TableHead>
                       <TableHead>Section Incharge</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allSectionsLoading || teachersLoading) && <TableRow><TableCell colSpan={3} className="text-center">Loading...</TableCell></TableRow>}
-                    {!allSectionsLoading && allClassSections?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center">No sections found in the school.</TableCell></TableRow>}
-                    {allClassSections?.sort((a,b) => a.className.localeCompare(b.className) || a.sectionIdentifier.localeCompare(b.sectionIdentifier)).map(sec => (
-                        <TableRow key={sec.id}>
-                            <TableCell className="font-medium">{sec.className}</TableCell>
-                            <TableCell>{sec.sectionIdentifier}</TableCell>
-                            <TableCell>{getTeacherName(sec.sectionInchargeId)}</TableCell>
+                    {(allSectionsLoading || teachersLoading) && <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>}
+                    {!allSectionsLoading && Object.keys(sectionsByClass).length === 0 && <TableRow><TableCell colSpan={4} className="text-center">No sections found in the school.</TableCell></TableRow>}
+                    {Object.keys(sectionsByClass).sort((a,b) => (defaultClasses.indexOf(a) || 99) - (defaultClasses.indexOf(b) || 99)).map((className, index) => (
+                        <TableRow key={className}>
+                            <TableCell>{index + 1}</TableCell>
+                            <TableCell className="font-medium">{className}</TableCell>
+                            <TableCell>
+                                {sectionsByClass[className].map(sec => (
+                                    <div key={sec.id} className="py-1">{sec.sectionIdentifier}</div>
+                                ))}
+                            </TableCell>
+                            <TableCell>
+                                {sectionsByClass[className].map(sec => (
+                                    <div key={sec.id} className="py-1">{getTeacherName(sec.sectionInchargeId)}</div>
+                                ))}
+                            </TableCell>
                         </TableRow>
                     ))}
                   </TableBody>
