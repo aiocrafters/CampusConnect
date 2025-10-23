@@ -140,14 +140,12 @@ export default function AddExistingStudentPage() {
     const batch = writeBatch(firestore);
     const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
 
-    const selectedSection = classSections?.find(cs => cs.id === values.classSectionId);
-    
     const studentData: Omit<Student, 'currentClass' | 'admissionClass'> & Partial<Pick<Student, 'currentClass' | 'admissionClass'>> & { schoolId: string, status: 'Active' } = {
         ...values,
         schoolId,
         status: 'Active' as const,
-        admissionClass: selectedSection?.className,
-        currentClass: selectedSection?.className,
+        admissionClass: selectedClass || undefined,
+        currentClass: selectedClass || undefined,
     };
     batch.set(studentDocRef, studentData);
 
@@ -161,15 +159,15 @@ export default function AddExistingStudentPage() {
         details: { academicYear: new Date().getFullYear().toString() }
     });
 
-    if (selectedSection) {
+    if (selectedClass) {
         const classAssignTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
         batch.set(classAssignTimelineEventRef, {
             id: classAssignTimelineEventRef.id,
             studentId: values.id,
             timestamp: new Date().toISOString(),
             type: 'CLASS_ASSIGNMENT',
-            description: `Assigned to Class ${selectedSection.className} - Section ${selectedSection.sectionIdentifier}.`,
-            details: { class: selectedSection.className, section: selectedSection.sectionIdentifier, academicYear: new Date().getFullYear().toString() }
+            description: `Assigned to Class ${selectedClass}.`,
+            details: { class: selectedClass, academicYear: new Date().getFullYear().toString() }
         });
     }
 
@@ -224,7 +222,7 @@ export default function AddExistingStudentPage() {
                         </FormItem>
                       )}
                     />
-                    <FormItem>
+                    <FormItem className="md:col-span-2">
                         <FormLabel>Admission Class</FormLabel>
                         <Select onValueChange={(value) => {
                             setSelectedClass(value);
@@ -245,30 +243,6 @@ export default function AddExistingStudentPage() {
                         </Select>
                         <FormMessage />
                     </FormItem>
-                     <FormField
-                      control={form.control}
-                      name="classSectionId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Section</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClass}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a section" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                               {sectionsForSelectedClass.map((section) => (
-                                    <SelectItem key={section.id} value={section.id}>
-                                        {section.sectionIdentifier} {section.sectionName ? `(${section.sectionName})` : ''}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                 </div>
                 <FormField
                   control={form.control}
@@ -454,3 +428,5 @@ export default function AddExistingStudentPage() {
     </main>
   )
 }
+
+    
