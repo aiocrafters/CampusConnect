@@ -1,5 +1,6 @@
 
 
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -8,6 +9,17 @@ export interface User {
   email: string;
   role: UserRole;
   avatarUrl: string;
+}
+
+export interface School {
+    id: string;
+    schoolName: string;
+    udiseCode: string;
+    address: string;
+    contactEmail: string;
+    contactPhoneNumber: string;
+    adminName: string;
+    lastAdmissionNumber?: number;
 }
 
 export interface Student {
@@ -150,4 +162,5 @@ export interface Department {
     
 
     
+
 
