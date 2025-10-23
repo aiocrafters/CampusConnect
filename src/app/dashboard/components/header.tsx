@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -23,7 +24,7 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/school-admin", icon: UserCog, label: "School Admin" },
-  { href: "/dashboard/add-student", icon: PlusCircle, label: "Add Student" },
+  { href: "/dashboard/new-admission", icon: PlusCircle, label: "New Admission" },
   { href: "/dashboard/add-existing-students", icon: Users, label: "Add Existing Student" },
 ];
 
