@@ -204,22 +204,16 @@ export default function ClassesAndSectionsPage() {
                       <TableHead>Class Name</TableHead>
                       <TableHead>Section</TableHead>
                       <TableHead>Section Incharge</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(allSectionsLoading || teachersLoading) && <TableRow><TableCell colSpan={4} className="text-center">Loading...</TableCell></TableRow>}
-                    {!allSectionsLoading && allClassSections?.length === 0 && <TableRow><TableCell colSpan={4} className="text-center">No sections found in the school.</TableCell></TableRow>}
+                    {(allSectionsLoading || teachersLoading) && <TableRow><TableCell colSpan={3} className="text-center">Loading...</TableCell></TableRow>}
+                    {!allSectionsLoading && allClassSections?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center">No sections found in the school.</TableCell></TableRow>}
                     {allClassSections?.sort((a,b) => a.className.localeCompare(b.className) || a.sectionIdentifier.localeCompare(b.sectionIdentifier)).map(sec => (
                         <TableRow key={sec.id}>
                             <TableCell className="font-medium">{sec.className}</TableCell>
                             <TableCell>{sec.sectionIdentifier}</TableCell>
                             <TableCell>{getTeacherName(sec.sectionInchargeId)}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteSection(sec)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </TableCell>
                         </TableRow>
                     ))}
                   </TableBody>
