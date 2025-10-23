@@ -131,7 +131,7 @@ export default function ClassesAndSectionsPage() {
     <main className="grid flex-1 items-start gap-8 sm:px-6 sm:py-0">
       <Card>
         <CardHeader>
-          <CardTitle>Classes and Sections</CardTitle>
+          <CardTitle>Manage Sections by Class</CardTitle>
           <CardDescription>Manage sections for each class.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -194,10 +194,16 @@ export default function ClassesAndSectionsPage() {
               </div>
             </div>
           )}
-
-            <div>
-              <h3 className="text-lg font-semibold mb-2">All School Sections</h3>
-              <div className="rounded-md border">
+        </CardContent>
+      </Card>
+      
+      <Card>
+          <CardHeader>
+              <CardTitle>All School Sections</CardTitle>
+              <CardDescription>An overview of all sections in the school.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -219,8 +225,7 @@ export default function ClassesAndSectionsPage() {
                   </TableBody>
                 </Table>
               </div>
-            </div>
-        </CardContent>
+          </CardContent>
       </Card>
       
       <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
