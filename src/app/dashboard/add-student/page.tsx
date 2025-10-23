@@ -44,6 +44,8 @@ const studentFormSchema = z.object({
   bankAccountNumber: z.string().optional(),
   bankName: z.string().optional(),
   ifscCode: z.string().optional(),
+  year: z.coerce.number().optional(),
+  session: z.string().optional(),
 });
 
 export default function AddStudentPage() {
@@ -92,6 +94,8 @@ export default function AddStudentPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
+      year: new Date().getFullYear(),
+      session: "",
     },
   });
   
@@ -113,6 +117,8 @@ export default function AddStudentPage() {
       bankAccountNumber: "",
       bankName: "",
       ifscCode: "",
+      year: new Date().getFullYear(),
+      session: "",
     });
     setSelectedClass(null);
   }
@@ -192,6 +198,32 @@ export default function AddStudentPage() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <div className="grid md:grid-cols-2 gap-6 p-4">
                 <div className="md:col-span-2 grid md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="year"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Year</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 2024" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="session"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Session</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., 2024-2025" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormItem>
                         <FormLabel>Current Class</FormLabel>
                         <Select onValueChange={(value) => {

@@ -30,6 +30,8 @@ export interface Student {
   bankAccountNumber?: string;
   bankName?: string;
   ifscCode?: string;
+  year?: number;
+  session?: string;
 }
 
 export interface Teacher {
@@ -148,3 +150,4 @@ export interface Department {
     
 
     
+
