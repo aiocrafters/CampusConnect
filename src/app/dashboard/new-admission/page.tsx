@@ -187,7 +187,7 @@ export default function NewAdmissionPage() {
             };
             transaction.set(studentDocRef, studentData);
 
-            const timelineColRef = collection(firestore, studentDocRef.path, "timeline");
+            const timelineColRef = collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`);
 
             const admissionTimelineEventRef = doc(timelineColRef);
             transaction.set(admissionTimelineEventRef, {
@@ -524,5 +524,3 @@ export default function NewAdmissionPage() {
     </main>
   )
 }
-
-    
