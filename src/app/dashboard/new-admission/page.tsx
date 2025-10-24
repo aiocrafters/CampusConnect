@@ -46,6 +46,7 @@ const studentFormSchema = z.object({
   year: z.coerce.number().optional(),
   session: z.string().optional(),
   admissionClass: z.string().optional(),
+  status: z.enum(["Active", "Inactive"]),
 });
 
 const setupFormSchema = z.object({
@@ -104,6 +105,7 @@ export default function NewAdmissionPage() {
       year: new Date().getFullYear(),
       session: "",
       admissionClass: "",
+      status: "Active",
     },
   });
 
@@ -134,6 +136,7 @@ export default function NewAdmissionPage() {
       year: new Date().getFullYear(),
       session: "",
       admissionClass: "",
+      status: "Active",
     });
     setSelectedClass(null);
   }, [firestore, schoolId, studentForm, schoolData]);
@@ -178,7 +181,7 @@ export default function NewAdmissionPage() {
             }
             const newAdmissionNumber = (schoolDoc.data().lastAdmissionNumber || 0) + 1;
             
-            const studentData: Omit<Student, 'currentClass'> & Partial<Pick<Student, 'currentClass'>> & { schoolId: string, status: 'Active' } = {
+            const studentData: Omit<Student, 'currentClass'> & Partial<Pick<Student, 'currentClass'>> = {
                 ...values,
                 admissionNumber: newAdmissionNumber.toString(),
                 schoolId,
@@ -221,10 +224,15 @@ export default function NewAdmissionPage() {
         resetForm();
 
     } catch (error) {
+        const studentDataForError = {
+            ...values,
+            schoolId,
+            currentClass: selectedClass || '',
+        };
         const permissionError = new FirestorePermissionError({
           path: studentDocRef.path,
           operation: 'create',
-          requestResourceData: values,
+          requestResourceData: studentDataForError,
         });
         errorEmitter.emit('permission-error', permissionError);
     } finally {
