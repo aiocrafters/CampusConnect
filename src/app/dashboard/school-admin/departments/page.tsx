@@ -17,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Department } from "@/lib/types";
 
@@ -90,7 +89,6 @@ export default function DepartmentsPage() {
   const schoolId = user?.uid;
   const { toast } = useToast();
 
-  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -111,10 +109,6 @@ export default function DepartmentsPage() {
   const nonAcademicForm = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: { name: "", type: "Non-Academic", parentId: "School Administration Department" },
-  });
-
-  const editForm = useForm<DepartmentFormData>({
-    resolver: zodResolver(departmentFormSchema),
   });
 
   // Parent department options
@@ -175,26 +169,6 @@ export default function DepartmentsPage() {
     if(values.type === 'Academic') academicForm.reset();
     if(values.type === 'Vocational') vocationalForm.reset();
     if(values.type === 'Non-Academic') nonAcademicForm.reset();
-  };
-
-  const onEditDepartmentSubmit = (values: DepartmentFormData) => {
-    if (!firestore || !schoolId || !selectedDepartment) return;
-    const departmentRef = doc(firestore, `schools/${schoolId}/departments`, selectedDepartment.id);
-    const data = { name: values.name, type: values.type, parentId: values.parentId };
-    updateDocumentNonBlocking(departmentRef, data);
-    toast({ title: "Department Updated" });
-    setIsEditSheetOpen(false);
-  }
-
-  const handleEdit = (department: Department) => {
-    setSelectedDepartment(department);
-    editForm.reset({
-      id: department.id,
-      name: department.name,
-      type: department.type,
-      parentId: department.parentId,
-    });
-    setIsEditSheetOpen(true);
   };
   
   const handleDelete = (department: Department) => {
@@ -298,9 +272,6 @@ export default function DepartmentsPage() {
                   <TableCell>{dept.type}</TableCell>
                   <TableCell>{getParentName(dept.parentId)}</TableCell>
                   <TableCell className="text-right">
-                     <Button variant="ghost" size="icon" onClick={() => handleEdit(dept)}>
-                        <Edit className="h-4 w-4" />
-                    </Button>
                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(dept)}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
@@ -311,72 +282,6 @@ export default function DepartmentsPage() {
           </Table>
         </CardContent>
       </Card>
-
-      <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-        <SheetContent>
-            <SheetHeader>
-                <SheetTitle>Edit Department</SheetTitle>
-                <SheetDescription>Update the department details.</SheetDescription>
-            </SheetHeader>
-            <Form {...editForm}>
-                <form onSubmit={editForm.handleSubmit(onEditDepartmentSubmit)} className="flex flex-col h-full">
-                    <div className="grid gap-4 py-4">
-                        <FormField
-                            control={editForm.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Department Type</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="Academic">Academic</SelectItem>
-                                            <SelectItem value="Vocational">Vocational</SelectItem>
-                                            <SelectItem value="Non-Academic">Non-Academic</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={editForm.control}
-                            name="parentId"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Parent Department</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a parent" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                          {allParentOptions.map(dept => (
-                                            <SelectItem key={dept.value} value={dept.value}>{dept.label}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={editForm.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Department Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Principal's Office" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-                    <SheetFooter className="mt-auto">
-                        <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
-                        <Button type="submit">Save Changes</Button>
-                    </SheetFooter>
-                </form>
-            </Form>
-        </SheetContent>
-      </Sheet>
       
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
