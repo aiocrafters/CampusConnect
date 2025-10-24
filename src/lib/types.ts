@@ -2,6 +2,7 @@
 
 
 
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -151,7 +152,7 @@ export interface Department {
   name: string;
   parentId?: string;
   isDefault?: boolean;
-  type?: 'Academic' | 'Non-Academic';
+  type?: 'Academic' | 'Non-Academic' | 'Vocational';
 }
     
 
@@ -164,6 +165,7 @@ export interface Department {
     
 
     
+
 
 
 

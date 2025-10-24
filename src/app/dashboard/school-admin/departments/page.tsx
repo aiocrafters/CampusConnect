@@ -1,9 +1,9 @@
 
 "use client"
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, query, doc, where } from "firebase/firestore";
+import { collection, query, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -18,16 +18,72 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Department } from "@/lib/types";
 
 const departmentFormSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Department name is required."),
-  type: z.enum(["Academic", "Non-Academic"], {
+  type: z.enum(["Academic", "Non-Academic", "Vocational"], {
     required_error: "Department type is required.",
   }),
   parentId: z.string().optional(),
 });
+
+type DepartmentFormData = z.infer<typeof departmentFormSchema>;
+
+interface DepartmentFormProps {
+  form: any; // React Hook Form's form object
+  onSubmit: (values: DepartmentFormData) => void;
+  parentDepartments: { value: string; label: string }[];
+  isLoading: boolean;
+}
+
+const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, parentDepartments, isLoading }) => (
+  <Form {...form}>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+      <FormField
+        control={form.control}
+        name="parentId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Parent Department</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a parent department" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {parentDepartments.map(dept => (
+                  <SelectItem key={dept.value} value={dept.value}>{dept.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Department Name</FormLabel>
+            <FormControl>
+              <Input placeholder="e.g., Senior Secondary Wing" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <Button type="submit" disabled={isLoading}>
+        <PlusCircle className="mr-2 h-4 w-4" />
+        Add Department
+      </Button>
+    </form>
+  </Form>
+);
 
 export default function DepartmentsPage() {
   const { user, firestore } = useFirebase();
@@ -44,59 +100,63 @@ export default function DepartmentsPage() {
   }, [firestore, schoolId]);
   const { data: departments, isLoading: departmentsLoading } = useCollection<Department>(departmentsQuery);
 
-  const addForm = useForm<z.infer<typeof departmentFormSchema>>({
+  const academicForm = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentFormSchema),
-    defaultValues: {
-      name: "",
-      parentId: "none",
-    },
+    defaultValues: { name: "", type: "Academic", parentId: "Academic Affairs" },
   });
-  
-  const editForm = useForm<z.infer<typeof departmentFormSchema>>({
+  const vocationalForm = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentFormSchema),
-    defaultValues: {
-      name: "",
-      parentId: "none",
-    },
+    defaultValues: { name: "", type: "Vocational", parentId: "Business and Technical Education Department" },
+  });
+  const nonAcademicForm = useForm<DepartmentFormData>({
+    resolver: zodResolver(departmentFormSchema),
+    defaultValues: { name: "", type: "Non-Academic", parentId: "School Administration Department" },
   });
 
-  const parentDepartments = useMemo(() => {
-    if (!departments) return [];
-    // Only allow top-level departments to be parents
-    // Exclude the department being edited from the list of possible parents
-    return departments.filter(d => !d.parentId && d.id !== selectedDepartment?.id);
-  }, [departments, selectedDepartment]);
+  const editForm = useForm<DepartmentFormData>({
+    resolver: zodResolver(departmentFormSchema),
+  });
+
+  // Parent department options
+  const academicParents = [
+    { value: "Language and Literature Department", label: "Language and Literature Department" },
+    { value: "Mathematics Department", label: "Mathematics Department" },
+    { value: "Science Department", label: "Science Department" },
+    { value: "Social Studies and Humanities Department", label: "Social Studies and Humanities Department" },
+    { value: "Arts and Physical Education Department", label: "Arts and Physical Education Department" },
+    { value: "Computer Science and ICT Department", label: "Computer Science and ICT Department" },
+    { value: "Academic Affairs", label: "Academic Affairs" },
+  ];
+  const vocationalParents = [
+    { value: "Business and Technical Education Department", label: "Business and Technical Education Department" },
+    { value: "Technical and Vocational Skills Department", label: "Technical and Vocational Skills Department" },
+  ];
+  const nonAcademicParents = [
+    { value: "School Administration Department", label: "School Administration Department" },
+    { value: "Human Resources (HR) Department", label: "Human Resources (HR) Department" },
+    { value: "Finance and Accounting Department", label: "Finance and Accounting Department" },
+    { value: "Admissions and Records Department", label: "Admissions and Records Department" },
+    { value: "Student Affairs and Guidance Department", label: "Student Affairs and Guidance Department" },
+    { value: "Information Technology (IT) Department", label: "Information Technology (IT) Department" },
+    { value: "Facilities and Maintenance Department", label: "Facilities and Maintenance Department" },
+    { value: "Health and Wellness Department", label: "Health and Wellness Department" },
+  ];
   
+  const allParentOptions = useMemo(() => {
+    const dynamicParents = departments?.filter(d => !d.parentId).map(d => ({ value: d.id, label: d.name })) || [];
+    return [...academicParents, ...vocationalParents, ...nonAcademicParents, ...dynamicParents];
+  },[departments]);
+
+
   const getParentName = (parentId?: string) => {
-    if (!parentId || parentId === 'none' || !departments) return "Top-Level";
-    const parentDept = departments.find(d => d.id === parentId);
-    if(parentDept) return parentDept.name;
-    // For static options
-    if (["Academic", "Administrative", "Students Welfare", "Support & Operations"].includes(parentId)) {
-        return parentId;
-    }
-    return "Top-Level";
-  };
-
-  const handleEdit = (department: Department) => {
-    setSelectedDepartment(department);
-    editForm.reset({
-      id: department.id,
-      name: department.name,
-      type: department.type,
-      parentId: department.parentId || "none",
-    });
-    setIsEditSheetOpen(true);
+    if (!parentId) return "Top-Level";
+    const parent = allParentOptions.find(p => p.value === parentId);
+    return parent?.label || "Top-Level";
   };
   
-  const handleDelete = (department: Department) => {
-     setSelectedDepartment(department);
-     setIsDeleteDialogOpen(true);
-  };
-
-  const onAddDepartmentSubmit = (values: z.infer<typeof departmentFormSchema>) => {
+  const handleDepartmentSubmit = (values: DepartmentFormData) => {
     if (!firestore || !schoolId) return;
-    
+
     const departmentId = doc(collection(firestore, `schools/${schoolId}/departments`)).id;
     const departmentRef = doc(firestore, `schools/${schoolId}/departments`, departmentId);
 
@@ -105,29 +165,42 @@ export default function DepartmentsPage() {
       schoolId: schoolId,
       name: values.name,
       type: values.type,
-      parentId: values.parentId === "none" ? "" : values.parentId,
+      parentId: values.parentId,
     };
-    
+
     setDocumentNonBlocking(departmentRef, data, { merge: false });
-    toast({ title: "Department Created" });
-    addForm.reset({ name: "", type: undefined, parentId: "none" });
+    toast({ title: "Department Created", description: `${values.name} has been added.` });
+    
+    // Reset the correct form
+    if(values.type === 'Academic') academicForm.reset();
+    if(values.type === 'Vocational') vocationalForm.reset();
+    if(values.type === 'Non-Academic') nonAcademicForm.reset();
   };
-  
-  const onEditDepartmentSubmit = (values: z.infer<typeof departmentFormSchema>) => {
+
+  const onEditDepartmentSubmit = (values: DepartmentFormData) => {
     if (!firestore || !schoolId || !selectedDepartment) return;
-
     const departmentRef = doc(firestore, `schools/${schoolId}/departments`, selectedDepartment.id);
-
-     const data = {
-      name: values.name,
-      type: values.type,
-      parentId: values.parentId === "none" ? "" : values.parentId,
-    };
-
+    const data = { name: values.name, type: values.type, parentId: values.parentId };
     updateDocumentNonBlocking(departmentRef, data);
     toast({ title: "Department Updated" });
     setIsEditSheetOpen(false);
   }
+
+  const handleEdit = (department: Department) => {
+    setSelectedDepartment(department);
+    editForm.reset({
+      id: department.id,
+      name: department.name,
+      type: department.type,
+      parentId: department.parentId,
+    });
+    setIsEditSheetOpen(true);
+  };
+  
+  const handleDelete = (department: Department) => {
+     setSelectedDepartment(department);
+     setIsDeleteDialogOpen(true);
+  };
   
   const confirmDelete = () => {
     if (!firestore || !schoolId || !selectedDepartment) return;
@@ -154,79 +227,47 @@ export default function DepartmentsPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Add New Department</CardTitle>
-                <CardDescription>
-                Fill in the details for the new department.
-                </CardDescription>
+                <CardDescription>Select the department type to add a new department.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Form {...addForm}>
-                    <form onSubmit={addForm.handleSubmit(onAddDepartmentSubmit)} className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <FormField
-                            control={addForm.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Department Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Principal's Office" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={addForm.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Department Type</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="Academic">Academic</SelectItem>
-                                            <SelectItem value="Non-Academic">Non-Academic</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={addForm.control}
-                            name="parentId"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Parent Department</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a parent department" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="none">None (Top-Level Department)</SelectItem>
-                                            <SelectItem value="Academic">Academic</SelectItem>
-                                            <SelectItem value="Administrative">Administrative</SelectItem>
-                                            <SelectItem value="Students Welfare">Students Welfare</SelectItem>
-                                            <SelectItem value="Support & Operations">Support & Operations</SelectItem>
-                                            {parentDepartments.map(dept => (
-                                                <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <Button type="submit">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Department
-                        </Button>
-                    </form>
-                </Form>
+                <Tabs defaultValue="academic">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="academic">Academic</TabsTrigger>
+                        <TabsTrigger value="vocational">Vocational</TabsTrigger>
+                        <TabsTrigger value="non-academic">Non-Academic</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="academic">
+                        <Card className="mt-4">
+                            <CardHeader><CardTitle>Add Academic Department</CardTitle></CardHeader>
+                            <CardContent>
+                                <DepartmentForm form={academicForm} onSubmit={handleDepartmentSubmit} parentDepartments={academicParents} isLoading={departmentsLoading} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="vocational">
+                        <Card className="mt-4">
+                            <CardHeader><CardTitle>Add Vocational Department</CardTitle></CardHeader>
+                            <CardContent>
+                                <DepartmentForm form={vocationalForm} onSubmit={handleDepartmentSubmit} parentDepartments={vocationalParents} isLoading={departmentsLoading} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="non-academic">
+                         <Card className="mt-4">
+                            <CardHeader><CardTitle>Add Non-Academic Department</CardTitle></CardHeader>
+                            <CardContent>
+                                <DepartmentForm form={nonAcademicForm} onSubmit={handleDepartmentSubmit} parentDepartments={nonAcademicParents} isLoading={departmentsLoading} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </CardContent>
         </Card>
 
       <Card>
         <CardHeader>
             <CardTitle>Departments & Offices</CardTitle>
-            <CardDescription>
-              Manage academic and non-academic departments and their sub-departments.
-            </CardDescription>
+            <CardDescription>Manage academic and non-academic departments and their sub-departments.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -275,24 +316,11 @@ export default function DepartmentsPage() {
         <SheetContent>
             <SheetHeader>
                 <SheetTitle>Edit Department</SheetTitle>
-                <SheetDescription>
-                   Update the department details.
-                </SheetDescription>
+                <SheetDescription>Update the department details.</SheetDescription>
             </SheetHeader>
             <Form {...editForm}>
                 <form onSubmit={editForm.handleSubmit(onEditDepartmentSubmit)} className="flex flex-col h-full">
                     <div className="grid gap-4 py-4">
-                        <FormField
-                            control={editForm.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Department Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Principal's Office" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
                         <FormField
                             control={editForm.control}
                             name="type"
@@ -303,6 +331,7 @@ export default function DepartmentsPage() {
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select a type" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="Academic">Academic</SelectItem>
+                                            <SelectItem value="Vocational">Vocational</SelectItem>
                                             <SelectItem value="Non-Academic">Non-Academic</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -317,18 +346,24 @@ export default function DepartmentsPage() {
                                 <FormItem>
                                     <FormLabel>Parent Department</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a parent department" /></SelectTrigger></FormControl>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a parent" /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                            <SelectItem value="none">None (Top-Level Department)</SelectItem>
-                                            <SelectItem value="Academic">Academic</SelectItem>
-                                            <SelectItem value="Administrative">Administrative</SelectItem>
-                                            <SelectItem value="Students Welfare">Students Welfare</SelectItem>
-                                            <SelectItem value="Support & Operations">Support & Operations</SelectItem>
-                                            {parentDepartments.map(dept => (
-                                                <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
-                                            ))}
+                                          {allParentOptions.map(dept => (
+                                            <SelectItem key={dept.value} value={dept.value}>{dept.label}</SelectItem>
+                                          ))}
                                         </SelectContent>
                                     </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={editForm.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Department Name</FormLabel>
+                                    <FormControl><Input placeholder="e.g., Principal's Office" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

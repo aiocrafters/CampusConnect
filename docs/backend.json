@@ -307,7 +307,7 @@
         "name": { "type": "string", "description": "The name of the department." },
         "parentId": { "type": "string", "description": "The ID of the parent department, for creating hierarchies." },
         "isDefault": { "type": "boolean", "description": "Indicates if this is a default, non-deletable department." },
-        "type": { "type": "string", "enum": ["Academic", "Non-Academic"], "description": "The category of the department." }
+        "type": { "type": "string", "enum": ["Academic", "Non-Academic", "Vocational"], "description": "The category of the department." }
       },
       "required": ["id", "schoolId", "name"]
     },
@@ -844,3 +844,4 @@
     
 
     
+
