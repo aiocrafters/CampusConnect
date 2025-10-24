@@ -181,11 +181,10 @@ export default function NewAdmissionPage() {
             }
             const newAdmissionNumber = (schoolDoc.data().lastAdmissionNumber || 0) + 1;
             
-            const studentData: Omit<Student, 'currentClass'> & Partial<Pick<Student, 'currentClass'>> = {
+            const studentData: Student = {
                 ...values,
-                admissionNumber: newAdmissionNumber.toString(),
                 schoolId,
-                status: 'Active' as const,
+                admissionNumber: newAdmissionNumber.toString(),
                 currentClass: selectedClass || '',
             };
             transaction.set(studentDocRef, studentData);
@@ -224,7 +223,7 @@ export default function NewAdmissionPage() {
         resetForm();
 
     } catch (error) {
-        const studentDataForError = {
+        const studentDataForError: Student = {
             ...values,
             schoolId,
             currentClass: selectedClass || '',
@@ -532,3 +531,5 @@ export default function NewAdmissionPage() {
     </main>
   )
 }
+
+    
