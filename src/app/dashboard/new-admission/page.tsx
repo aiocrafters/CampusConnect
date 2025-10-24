@@ -17,8 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useFirebase, useCollection, useMemoFirebase, useDoc, updateDocumentNonBlocking } from "@/firebase"
-import { collection, query, doc, writeBatch, serverTimestamp, runTransaction, increment } from "firebase/firestore"
+import { useFirebase, useCollection, useMemoFirebase, useDoc, updateDocumentNonBlocking, errorEmitter, FirestorePermissionError } from "@/firebase"
+import { collection, query, doc, runTransaction, increment } from "firebase/firestore"
 import type { Student, ClassSection, StudentTimelineEvent } from "@/lib/types"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -168,6 +168,8 @@ export default function NewAdmissionPage() {
     }
     
     setIsLoading(true);
+    const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
+
     try {
         await runTransaction(firestore, async (transaction) => {
             const schoolDoc = await transaction.get(schoolDocRef);
@@ -176,7 +178,6 @@ export default function NewAdmissionPage() {
             }
             const newAdmissionNumber = (schoolDoc.data().lastAdmissionNumber || 0) + 1;
             
-            const studentDocRef = doc(firestore, `schools/${schoolId}/students`, values.id);
             const studentData: Omit<Student, 'currentClass'> & Partial<Pick<Student, 'currentClass'>> & { schoolId: string, status: 'Active' } = {
                 ...values,
                 admissionNumber: newAdmissionNumber.toString(),
@@ -186,10 +187,8 @@ export default function NewAdmissionPage() {
             };
             transaction.set(studentDocRef, studentData);
 
-            // Path for the timeline sub-collection
-            const timelineColRef = collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`);
+            const timelineColRef = collection(firestore, studentDocRef.path, "timeline");
 
-            // Admission Event
             const admissionTimelineEventRef = doc(timelineColRef);
             transaction.set(admissionTimelineEventRef, {
                 id: admissionTimelineEventRef.id,
@@ -200,7 +199,6 @@ export default function NewAdmissionPage() {
                 details: { academicYear: new Date().getFullYear().toString() }
             });
 
-            // Class Assignment Event
             if (selectedClass) {
                 const classAssignTimelineEventRef = doc(timelineColRef);
                 transaction.set(classAssignTimelineEventRef, {
@@ -223,12 +221,12 @@ export default function NewAdmissionPage() {
         resetForm();
 
     } catch (error) {
-        console.error("Transaction failed: ", error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to add student. Please try again.",
+        const permissionError = new FirestorePermissionError({
+          path: studentDocRef.path,
+          operation: 'create',
+          requestResourceData: values,
         });
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
         setIsLoading(false);
     }
@@ -526,3 +524,5 @@ export default function NewAdmissionPage() {
     </main>
   )
 }
+
+    
