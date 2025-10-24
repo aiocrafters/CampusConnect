@@ -1,6 +1,7 @@
 
 
 
+
 export type UserRole = "admin" | "teacher" | "incharge" | "student" | "parent";
 
 export interface User {
@@ -61,6 +62,7 @@ export interface Teacher {
   departmentId?: string;
   status: 'Active' | 'Inactive';
   inactiveReason?: string;
+  type?: 'Teaching Staff' | 'Administrative Staff' | 'Non-Teaching Staff' | 'Maintenance and Operations Staff';
 }
 
 export interface ClassSection {
@@ -162,5 +164,6 @@ export interface Department {
     
 
     
+
 
 

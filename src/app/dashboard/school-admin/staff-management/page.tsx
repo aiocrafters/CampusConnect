@@ -94,6 +94,7 @@ const staffFormSchema = z.object({
   departmentId: z.string().optional(),
   status: z.enum(["Active", "Inactive"]),
   inactiveReason: z.string().optional(),
+  type: z.enum(['Teaching Staff', 'Administrative Staff', 'Non-Teaching Staff', 'Maintenance and Operations Staff']).optional(),
 });
 
 const designationFormSchema = z.object({
@@ -527,6 +528,29 @@ export default function StaffManagementPage() {
                       />
                        <FormField
                         control={staffForm.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Type</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a staff type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Teaching Staff">Teaching Staff</SelectItem>
+                                <SelectItem value="Administrative Staff">Administrative Staff</SelectItem>
+                                <SelectItem value="Non-Teaching Staff">Non-Teaching Staff</SelectItem>
+                                <SelectItem value="Maintenance and Operations Staff">Maintenance and Operations Staff</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                       <FormField
+                        control={staffForm.control}
                         name="designationId"
                         render={({ field }) => (
                           <FormItem>
@@ -864,5 +888,3 @@ export default function StaffManagementPage() {
     </main>
   )
 }
-
-    

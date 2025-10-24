@@ -260,6 +260,15 @@
         },
         "inactiveReason": {
             "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Teaching Staff",
+            "Administrative Staff",
+            "Non-Teaching Staff",
+            "Maintenance and Operations Staff"
+          ]
         }
       },
       "required": [
