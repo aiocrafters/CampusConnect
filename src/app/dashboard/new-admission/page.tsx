@@ -182,7 +182,7 @@ export default function NewAdmissionPage() {
                 admissionNumber: newAdmissionNumber.toString(),
                 schoolId,
                 status: 'Active' as const,
-                currentClass: selectedClass || undefined,
+                currentClass: selectedClass || '',
             };
             transaction.set(studentDocRef, studentData);
 
