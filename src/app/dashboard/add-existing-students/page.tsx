@@ -149,7 +149,9 @@ export default function AddExistingStudentPage() {
     };
     batch.set(studentDocRef, studentData);
 
-    const admissionTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+    const timelineColRef = collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`);
+
+    const admissionTimelineEventRef = doc(timelineColRef);
     batch.set(admissionTimelineEventRef, {
         id: admissionTimelineEventRef.id,
         studentId: values.id,
@@ -160,7 +162,7 @@ export default function AddExistingStudentPage() {
     });
 
     if (selectedClass) {
-        const classAssignTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+        const classAssignTimelineEventRef = doc(timelineColRef);
         batch.set(classAssignTimelineEventRef, {
             id: classAssignTimelineEventRef.id,
             studentId: values.id,
@@ -428,5 +430,3 @@ export default function AddExistingStudentPage() {
     </main>
   )
 }
-
-    

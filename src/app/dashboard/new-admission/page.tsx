@@ -186,7 +186,11 @@ export default function NewAdmissionPage() {
             };
             transaction.set(studentDocRef, studentData);
 
-            const admissionTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+            // Path for the timeline sub-collection
+            const timelineColRef = collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`);
+
+            // Admission Event
+            const admissionTimelineEventRef = doc(timelineColRef);
             transaction.set(admissionTimelineEventRef, {
                 id: admissionTimelineEventRef.id,
                 studentId: values.id,
@@ -196,8 +200,9 @@ export default function NewAdmissionPage() {
                 details: { academicYear: new Date().getFullYear().toString() }
             });
 
+            // Class Assignment Event
             if (selectedClass) {
-                const classAssignTimelineEventRef = doc(collection(firestore, `schools/${schoolId}/students/${values.id}/timeline`));
+                const classAssignTimelineEventRef = doc(timelineColRef);
                 transaction.set(classAssignTimelineEventRef, {
                     id: classAssignTimelineEventRef.id,
                     studentId: values.id,
