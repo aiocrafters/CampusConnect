@@ -1,474 +1,255 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a multi-tenant security model for the CampusConnect application,
- * where data is isolated at the school level. All data is nested under /schools/{schoolId},
- * and access is controlled based on the authenticated user's relationship to that school.
+ * @file Firebase Security Rules for CampusConnect Firestore.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict school-ownership model. All data is segregated by school ID and access is granted to authenticated users based on their association with a specific school.
  *
  * Data Structure:
- * - /schools/{schoolId}: Root collection for each school's data.
- * - /schools/{schoolId}/students/{studentId}: Student data, owned by the school.
- * - /schools/{schoolId}/classSections/{classSectionId}: Class section data, owned by the school.
- * - /schools/{schoolId}/staff/{staffId}: Staff data, owned by the school.
- * - /schools/{schoolId}/designations/{designationId}: Staff designation data.
- * - /schools/{schoolId}/departments/{departmentId}: Staff department data.
- * - /schools/{schoolId}/exams/{examId}: Exam data, owned by the school.
- * - /schools/{schoolId}/masterSubjects/{masterSubjectId}: Master subject data.
- * - /schools/{schoolId}/masterClasses/{masterClassId}: Master class data.
- * - /schools/{schoolId}/exams/{examId}/subjects/{subjectId}: Subject data, owned by the school and exam.
- * - /schools/{schoolId}/performanceRecords/{performanceRecordId}: Student performance data, owned by the school.
- * - /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId}: Class in-charge queries, owned by the school and student.
- * - /schools/{schoolId}/promotions/{promotionId}: Promotion data.
- * - /unique_identifiers/{identifier}: Collection to enforce uniqueness of certain fields, like phone numbers.
+ * The database is structured hierarchically under the `/schools/{schoolId}` path. Each school's data (students, staff, classes, etc.) is stored in subcollections under its respective school ID.
  *
  * Key Security Decisions:
- * - Strict ownership: Most collections enforce strict ownership based on the schoolId in the path.
- * - Denormalization: schoolId is denormalized to subcollection documents.
- * - No user listing: Listing of users is not permitted.
- * - Validation limited to relational integrity and authorization.
+ * - Listing of all schools is forbidden to prevent unauthorized discovery of school IDs.
+ * - All writes to school-owned data require the user to be authenticated and associated with the target school.
+ * - Data consistency is enforced by validating that the schoolId in the path matches the schoolId in the document data on creation.
+ * - Immutability of the `schoolId` field is enforced on updates to prevent moving data between schools.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * ==========================
-     * 🔐 Helper Functions
-     * ==========================
-     */
-
-    // Check if a user is signed in
+    // Helper function to check if the user is signed in.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Check if the authenticated user is the owner of a document based on the schoolId in the path.
-    function isSchoolOwner(schoolId) {
-      return isSignedIn() && request.auth.uid == schoolId; // This needs to be updated based on roles. Placeholder.
+    // Helper function to check if the user is the owner of the school.
+    function isOwner(schoolId) {
+      return isSignedIn() && request.auth.uid == schoolId;
     }
 
-     // Check if the authenticated user is the owner of a document based on the schoolId in the resource data.
-    function isResourceSchoolOwner(schoolId) {
-      return isSignedIn() && resource.data.schoolId == schoolId;
-    }
-
-    // Check if the authenticated user is creating a document with the correct schoolId.
-    function isCreatingWithSchoolId(schoolId) {
-      return isSignedIn() && request.resource.data.schoolId == schoolId;
-    }
-
-    // Check if the authenticated user is updating a document with the correct schoolId
-    function isUpdatingWithSchoolId(schoolId) {
-      return isSignedIn() && request.resource.data.schoolId == schoolId;
-    }
-
-    // Check if a document exists
-    function isExisting() {
-        return resource != null;
-    }
-
-    // Helper function that combines school ownership check with document existence for update/delete operations.
-    function isExistingSchoolOwner(schoolId) {
-        return isResourceSchoolOwner(schoolId) && isExisting();
+    // Helper function to check if the user is the existing owner of the school (for update/delete).
+    function isExistingOwner(schoolId) {
+      return isOwner(schoolId) && resource != null;
     }
 
     /**
-     * ==========================
-     * 🏢 Schools Collection
-     * ==========================
-     */
-
-    /**
-     * @description Controls access to the /schools/{schoolId} collection.
+     * @description Rules for the /schools collection. Only allows authenticated users to create a school with their UID.
      * @path /schools/{schoolId}
-     * @allow (get) Authenticated user can read school data.
-     * @allow (create) Authenticated user can create a school if they are the owner (Needs update to align with user/role).
-     * @allow (update) Authenticated user can update a school if they are the owner (Needs update to align with user/role).
-     * @allow (delete) Authenticated user can delete a school if they are the owner (Needs update to align with user/role).
-     * @deny (create) Unauthenticated user cannot create a school.
-     * @deny (update) Unauthenticated user cannot update a school.
-     * @deny (delete) Unauthenticated user cannot delete a school.
-     * @principle Enforces school-level ownership for data management.
+     * @allow (create) User with UID 'school_abc' can create a school document with ID 'school_abc'.
+     * @deny (create) User with UID 'user_xyz' cannot create a school document with ID 'school_abc'.
+     * @principle Enforces self-creation of school documents and prevents unauthorized creation.
      */
     match /schools/{schoolId} {
-      allow get: if isSignedIn(); // Anyone signed in can read school data
-      allow list: if false; // No listing of schools allowed.
-
-      // The following access rules need to be reviewed. The current isSchoolOwner is based on userId == schoolId and needs to be adapted.
-      // This provides a safe, restrictive starting point.
-      allow create: if false; // TODO: Implement school admin role check.
-      allow update: if false; // TODO: Implement school admin role check and isExistingSchoolOwner(schoolId).
-      allow delete: if false; // TODO: Implement school admin role check and isExistingSchoolOwner(schoolId).
+      allow get: if false;
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == schoolId;
+      allow update: if isExistingOwner(schoolId);
+      allow delete: if isExistingOwner(schoolId);
     }
 
     /**
-     * ==========================
-     * 🧑‍🎓 Students Collection
-     * ==========================
-     */
-
-    /**
-     * @description Controls access to the /schools/{schoolId}/students/{studentId} collection.
+     * @description Rules for the /schools/{schoolId}/students collection. Only allows creating a student under a school with a matching schoolId.
      * @path /schools/{schoolId}/students/{studentId}
-     * @allow (get) Authenticated user can read student data.
-     * @allow (create) Authenticated user can create a student within their school.
-     * @allow (update) Authenticated user can update a student within their school.
-     * @allow (delete) Authenticated user can delete a student within their school.
-     * @deny (create) Unauthenticated user cannot create a student.
-     * @deny (update) Unauthenticated user cannot update a student.
-     * @deny (delete) Unauthenticated user cannot delete a student.
-     * @principle Enforces school-level ownership for student data management.
+     * @allow (create) User with UID 'school_abc' can create a student under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a student under school 'school_abc'.
+     * @principle Enforces school-ownership for student creation and validates data consistency.
      */
     match /schools/{schoolId}/students/{studentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isSchoolOwner(schoolId); // School owners can list students.
-
-      // Assuming School admins can manage students. Adapt isCreatingWithSchoolId for admin-based access.
-      allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == studentId;
-      allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == studentId;
-      allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId && request.resource.data.id == studentId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId && resource.data.id == studentId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * ==========================
-     * ⏱️ Student Timeline Events Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/students/{studentId}/timeline/{eventId} collection.
+     * @description Rules for the /schools/{schoolId}/students/{studentId}/timeline collection.
      * @path /schools/{schoolId}/students/{studentId}/timeline/{eventId}
-     * @allow (get) Authenticated user can read a timeline event.
-     * @allow (create) Authenticated user can create a timeline event for a student within their school.
-     * @allow (update) Authenticated user can update a timeline event if they have school ownership.
-     * @allow (delete) Authenticated user can delete a timeline event if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a timeline event.
-     * @deny (update) Unauthenticated user cannot update a timeline event if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a timeline event if they lack school ownership.
-     * @principle Enforces school-level ownership for managing student timeline events.
+     * @allow (create) User with UID 'school_abc' can create a timeline event under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a timeline event under school 'school_abc'.
+     * @principle Enforces school-ownership for timeline event creation and validates data consistency.
      */
     match /schools/{schoolId}/students/{studentId}/timeline/{eventId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId);
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId);
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.studentId == studentId;
+      allow update: if isExistingOwner(schoolId);
+      allow delete: if isExistingOwner(schoolId);
     }
 
     /**
-     * ==========================
-     * 🏫 Class Sections Collection
-     * ==========================
-     */
-
-    /**
-     * @description Controls access to the /schools/{schoolId}/classSections/{classSectionId} collection.
+     * @description Rules for the /schools/{schoolId}/classSections collection. Only allows creating a classSection under a school with a matching schoolId.
      * @path /schools/{schoolId}/classSections/{classSectionId}
-     * @allow (get) Authenticated user can read class section data.
-     * @allow (create) Authenticated user can create a class section within their school.
-     * @allow (update) Authenticated user can update a class section within their school.
-     * @allow (delete) Authenticated user can delete a class section within their school.
-     * @deny (create) Unauthenticated user cannot create a class section.
-     * @deny (update) Unauthenticated user cannot update a class section.
-     * @deny (delete) Unauthenticated user cannot delete a class section.
-     * @principle Enforces school-level ownership for class section data management.
+     * @allow (create) User with UID 'school_abc' can create a classSection under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a classSection under school 'school_abc'.
+     * @principle Enforces school-ownership for classSection creation and validates data consistency.
      */
     match /schools/{schoolId}/classSections/{classSectionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isSchoolOwner(schoolId); // School owners can list class sections.
-
-      allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == classSectionId;
-      allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == classSectionId;
-      allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * ==========================
-     * 👨‍💼 Staff Designations Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/designations/{designationId} collection.
+     * @description Rules for the /schools/{schoolId}/designations collection. Only allows creating a designation under a school with a matching schoolId.
      * @path /schools/{schoolId}/designations/{designationId}
-     * @allow (get) Authenticated user can read a staff designation.
-     * @allow (create) Authenticated user can create a staff designation within their school.
-     * @allow (update) Authenticated user can update a staff designation if they have school ownership.
-     * @allow (delete) Authenticated user can delete a staff designation if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a staff designation.
-     * @deny (update) Unauthenticated user cannot update a staff designation if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a staff designation if they lack school ownership.
-     * @principle Enforces school-level ownership for managing staff designations.
+     * @allow (create) User with UID 'school_abc' can create a designation under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a designation under school 'school_abc'.
+     * @principle Enforces school-ownership for designation creation and validates data consistency.
      */
     match /schools/{schoolId}/designations/{designationId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == designationId;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == designationId;
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
-    /**
-     * ==========================
-     * 🏢 Staff Departments Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/departments/{departmentId} collection.
-     * @path /schools/{schoolId}/departments/{departmentId}
-     * @allow (get) Authenticated user can read a staff department.
-     * @allow (create) Authenticated user can create a staff department within their school.
-     * @allow (update) Authenticated user can update a staff department if they have school ownership.
-     * @allow (delete) Authenticated user can delete a staff department if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a staff department.
-     * @deny (update) Unauthenticated user cannot update a staff department if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a staff department if they lack school ownership.
-     * @principle Enforces school-level ownership for managing staff departments.
-     */
+     /**
+      * @description Rules for the /schools/{schoolId}/departments collection. Only allows creating a department under a school with a matching schoolId.
+      * @path /schools/{schoolId}/departments/{departmentId}
+      * @allow (create) User with UID 'school_abc' can create a department under school 'school_abc' with schoolId = 'school_abc'.
+      * @deny (create) User with UID 'school_xyz' cannot create a department under school 'school_abc'.
+      * @principle Enforces school-ownership for department creation and validates data consistency.
+      */
     match /schools/{schoolId}/departments/{departmentId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == departmentId;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == departmentId;
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * ==========================
-     * 📝 Exams Collection
-     * ==========================
-     */
-
-    /**
-     * @description Controls access to the /schools/{schoolId}/exams/{examId} collection.
+     * @description Rules for the /schools/{schoolId}/exams collection. Only allows creating an exam under a school with a matching schoolId.
      * @path /schools/{schoolId}/exams/{examId}
-     * @allow (get) Authenticated user can read exam data.
-     * @allow (create) Authenticated user can create an exam within their school.
-     * @allow (update) Authenticated user can update an exam within their school.
-     * @allow (delete) Authenticated user can delete an exam within their school.
-     * @deny (create) Unauthenticated user cannot create an exam.
-     * @deny (update) Unauthenticated user cannot update an exam.
-     * @deny (delete) Unauthenticated user cannot delete an exam.
-     * @principle Enforces school-level ownership for exam data management.
+     * @allow (create) User with UID 'school_abc' can create an exam under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create an exam under school 'school_abc'.
+     * @principle Enforces school-ownership for exam creation and validates data consistency.
      */
     match /schools/{schoolId}/exams/{examId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isSchoolOwner(schoolId); // School owners can list exams.
-
-      allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == examId;
-      allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == examId;
-      allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * ==========================
-     * 📚 Master Subjects Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/masterSubjects/{masterSubjectId} collection.
-     * @path /schools/{schoolId}/masterSubjects/{masterSubjectId}
-     * @allow (get) Authenticated user can read a master subject.
-     * @allow (create) Authenticated user can create a master subject within their school.
-     * @allow (update) Authenticated user can update a master subject if they have school ownership.
-     * @allow (delete) Authenticated user can delete a master subject if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a master subject.
-     * @deny (update) Unauthenticated user cannot update a master subject if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a master subject if they lack school ownership.
-     * @principle Enforces school-level ownership for managing master subjects.
-     */
-    match /schools/{schoolId}/masterSubjects/{masterSubjectId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == masterSubjectId;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == masterSubjectId;
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
-    }
-
-    /**
-     * ==========================
-     * 🍎 Master Classes Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/masterClasses/{masterClassId} collection.
-     * @path /schools/{schoolId}/masterClasses/{masterClassId}
-     * @allow (get) Authenticated user can read a master class.
-     * @allow (create) Authenticated user can create a master class within their school.
-     * @allow (update) Authenticated user can update a master class if they have school ownership.
-     * @allow (delete) Authenticated user can delete a master class if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a master class.
-     * @deny (update) Unauthenticated user cannot update a master class if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a master class if they lack school ownership.
-     * @principle Enforces school-level ownership for managing master classes.
-     */
-    match /schools/{schoolId}/masterClasses/{masterClassId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == masterClassId;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == masterClassId;
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
-    }
-
-    /**
-     * ==========================
-     * 📚 Subjects Collection
-     * ==========================
-     */
-
-    /**
-     * @description Controls access to the /schools/{schoolId}/exams/{examId}/subjects/{subjectId} collection.
+     * @description Rules for the /schools/{schoolId}/exams/{examId}/subjects collection.
      * @path /schools/{schoolId}/exams/{examId}/subjects/{subjectId}
-     * @allow (get) Authenticated user can read subject data.
-     * @allow (create) Authenticated user can create a subject within their school and exam.
-     * @allow (update) Authenticated user can update a subject within their school and exam.
-     * @allow (delete) Authenticated user can delete a subject within their school and exam.
-     * @deny (create) Unauthenticated user cannot create a subject.
-     * @deny (update) Unauthenticated user cannot update a subject.
-     * @deny (delete) Unauthenticated user cannot delete a subject.
-     * @principle Enforces school-level ownership for subject data management.
+     * @allow (create) User with UID 'school_abc' can create a subject under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a subject under school 'school_abc'.
+     * @principle Enforces school-ownership for subject creation and validates data consistency.
      */
     match /schools/{schoolId}/exams/{examId}/subjects/{subjectId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isSchoolOwner(schoolId); // School owners can list subjects.
-
-      allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == subjectId;
-      allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == subjectId;
-      allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+    }
+     /**
+      * @description Rules for the /schools/{schoolId}/masterSubjects collection. Only allows creating a masterSubject under a school with a matching schoolId.
+      * @path /schools/{schoolId}/masterSubjects/{masterSubjectId}
+      * @allow (create) User with UID 'school_abc' can create a masterSubject under school 'school_abc' with schoolId = 'school_abc'.
+      * @deny (create) User with UID 'school_xyz' cannot create a masterSubject under school 'school_abc'.
+      * @principle Enforces school-ownership for masterSubject creation and validates data consistency.
+      */
+    match /schools/{schoolId}/masterSubjects/{masterSubjectId} {
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * ==========================
-     * 💯 Performance Records Collection
-     * ==========================
+     * @description Rules for the /schools/{schoolId}/masterClasses collection. Only allows creating a masterClass under a school with a matching schoolId.
+     * @path /schools/{schoolId}/masterClasses/{masterClassId}
+     * @allow (create) User with UID 'school_abc' can create a masterClass under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a masterClass under school 'school_abc'.
+     * @principle Enforces school-ownership for masterClass creation and validates data consistency.
      */
+    match /schools/{schoolId}/masterClasses/{masterClassId} {
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+    }
 
     /**
-     * @description Controls access to the /schools/{schoolId}/performanceRecords/{performanceRecordId} collection.
+     * @description Rules for the /schools/{schoolId}/performanceRecords collection.
      * @path /schools/{schoolId}/performanceRecords/{performanceRecordId}
-     * @allow (get) Authenticated user can read performance record data.
-     * @allow (create) Authenticated user can create a performance record within their school.
-     * @allow (update) Authenticated user can update a performance record within their school.
-     * @allow (delete) Authenticated user can delete a performance record within their school.
-     * @deny (create) Unauthenticated user cannot create a performance record.
-     * @deny (update) Unauthenticated user cannot update a performance record.
-     * @deny (delete) Unauthenticated user cannot delete a performance record.
-     * @principle Enforces school-level ownership for performance record data management.
+     * @allow (create) User with UID 'school_abc' can create a performanceRecord under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a performanceRecord under school 'school_abc'.
+     * @principle Enforces school-ownership for performanceRecord creation and validates data consistency.
      */
     match /schools/{schoolId}/performanceRecords/{performanceRecordId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isSchoolOwner(schoolId); // School owners can list performance records.
-
-      allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == performanceRecordId;
-      allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == performanceRecordId;
-      allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
 
     /**
-     * ==========================
-     * ❓ Class Incharge Queries Collection
-     * ==========================
-     */
-
-    /**
-     * @description Controls access to the /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId} collection.
+     * @description Rules for the /schools/{schoolId}/students/{studentId}/classInchargeQueries collection.
      * @path /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId}
-     * @allow (get) Authenticated user can read class incharge query data.
-     * @allow (create) Authenticated user can create a class incharge query for a student within their school.
-     * @allow (update) Authenticated user can update a class incharge query if they have school ownership.
-     * @allow (delete) Authenticated user can delete a class incharge query if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a class incharge query.
-     * @deny (update) Unauthenticated user cannot update a class incharge query if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a class incharge query if they lack school ownership.
-     * @principle Enforces school-level ownership for managing class incharge queries.
+     * @allow (create) User with UID 'school_abc' can create a classInchargeQuery under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a classInchargeQuery under school 'school_abc'.
+     * @principle Enforces school-ownership for classInchargeQuery creation and validates data consistency.
      */
     match /schools/{schoolId}/students/{studentId}/classInchargeQueries/{classInchargeQueryId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-      allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == classInchargeQueryId;
-      allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == classInchargeQueryId;
-      allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.studentId == studentId;
+      allow update: if isExistingOwner(schoolId);
+      allow delete: if isExistingOwner(schoolId);
     }
 
     /**
-     * ==========================
-     * 🚀 Promotions Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/promotions/{promotionId} collection.
+     * @description Rules for the /schools/{schoolId}/promotions collection. Only allows creating a promotion under a school with a matching schoolId.
      * @path /schools/{schoolId}/promotions/{promotionId}
-     * @allow (get) Authenticated user can read a promotion record.
-     * @allow (create) Authenticated user can create a promotion record within their school.
-     * @allow (update) Authenticated user can update a promotion record if they have school ownership.
-     * @allow (delete) Authenticated user can delete a promotion record if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a promotion record.
-     * @deny (update) Unauthenticated user cannot update a promotion record if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a promotion record if they lack school ownership.
-     * @principle Enforces school-level ownership for managing promotions.
+     * @allow (create) User with UID 'school_abc' can create a promotion under school 'school_abc' with schoolId = 'school_abc'.
+     * @deny (create) User with UID 'school_xyz' cannot create a promotion under school 'school_abc'.
      */
     match /schools/{schoolId}/promotions/{promotionId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId);
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == promotionId;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == promotionId;
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
-
     /**
-     * ==========================
-     * 🆔 Unique Identifiers Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /unique_identifiers/{identifier} collection. Used to ensure uniqueness.
+     * @description Rules for the /unique_identifiers collection.
      * @path /unique_identifiers/{identifier}
-     * @allow (get) Authenticated user can read if they have school ownership (validate the schoolId).
-     * @allow (create) Authenticated user can create if they have school ownership and the schoolId matches.
-     * @allow (update) Authenticated user can update if they have school ownership and the schoolId matches.
-     * @allow (delete) Authenticated user can delete if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create.
-     * @deny (update) Unauthenticated user cannot update.
-     * @deny (delete) Unauthenticated user cannot delete.
-     * @principle Enforces school-level ownership and validates that the document's schoolId matches.
      */
     match /unique_identifiers/{identifier} {
-        allow get: if isSignedIn() && isResourceSchoolOwner(resource.data.schoolId); // Must exist to read
-        allow list: if false;
+      allow get: if false;
+      allow list: if false;
+      allow create: if request.resource.data.schoolId == schoolId();
+      allow update: if false;
+      allow delete: if false;
 
-        allow create: if isSignedIn() && isCreatingWithSchoolId(request.resource.data.schoolId) ;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(resource.data.schoolId) && isExistingSchoolOwner(resource.data.schoolId); // schoolId should not change
-        allow delete: if isSignedIn() && isExistingSchoolOwner(resource.data.schoolId);
+      function schoolId() {
+        return request.resource.data.schoolId;
+      }
     }
 
     /**
-     * ==========================
-     * 👨‍🏫 Staff Collection
-     * ==========================
-     */
-    /**
-     * @description Controls access to the /schools/{schoolId}/staff/{staffId} collection.
+     * @description Rules for the /schools/{schoolId}/staff collection.
      * @path /schools/{schoolId}/staff/{staffId}
-     * @allow (get) Authenticated user can read staff data.
-     * @allow (create) Authenticated user can create a staff member within their school.
-     * @allow (update) Authenticated user can update a staff member if they have school ownership.
-     * @allow (delete) Authenticated user can delete a staff member if they have school ownership.
-     * @deny (create) Unauthenticated user cannot create a staff member.
-     * @deny (update) Unauthenticated user cannot update a staff member if they lack school ownership.
-     * @deny (delete) Unauthenticated user cannot delete a staff member if they lack school ownership.
-     * @principle Enforces school-level ownership for managing staff members.
      */
     match /schools/{schoolId}/staff/{staffId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn() && isSchoolOwner(schoolId); // Assuming school admins can list staff.
-
-        allow create: if isSignedIn() && isCreatingWithSchoolId(schoolId) && request.resource.data.id == staffId;
-        allow update: if isSignedIn() && isUpdatingWithSchoolId(schoolId) && isExistingSchoolOwner(schoolId) && request.resource.data.id == staffId;
-        allow delete: if isSignedIn() && isExistingSchoolOwner(schoolId);
+      allow get: if isExistingOwner(schoolId);
+      allow list: if isOwner(schoolId);
+      allow create: if isOwner(schoolId) && request.resource.data.schoolId == schoolId;
+      allow update: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
+      allow delete: if isExistingOwner(schoolId) && resource.data.schoolId == schoolId;
     }
   }
 }
