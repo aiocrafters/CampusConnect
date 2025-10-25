@@ -40,6 +40,14 @@ const academicAffairsDepartments = [
     "Custom Name",
 ];
 
+const schoolAdminDepartments = [
+    "Principal’s Office",
+    "Vice Principal’s Office",
+    "Academic Affairs Office",
+    "Policy and Planning Office",
+    "Custom Name",
+];
+
 
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, parentDepartments, isLoading }) => {
   const parentId = useWatch({
@@ -53,6 +61,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
   });
 
   const isAcademicAffairs = parentId === 'Academic Affairs';
+  const isSchoolAdministration = parentId === 'School Administration Department';
   const isCustomName = departmentName === 'Custom Name';
 
   // When 'Custom Name' is selected, we want the validation to apply to the 'customName' field.
@@ -65,10 +74,10 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
   };
 
   useEffect(() => {
-    if (!isAcademicAffairs) {
+    if (!isAcademicAffairs && !isSchoolAdministration) {
       form.setValue('name', '');
     }
-  }, [isAcademicAffairs, form]);
+  }, [isAcademicAffairs, isSchoolAdministration, form]);
   
   return (
   <Form {...form}>
@@ -112,6 +121,29 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
                                 </FormControl>
                                 <SelectContent>
                                     {academicAffairsDepartments.map(deptName => (
+                                        <SelectItem key={deptName} value={deptName}>{deptName}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            ) : isSchoolAdministration ? (
+                 <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Office / Section Name</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select an office" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {schoolAdminDepartments.map(deptName => (
                                         <SelectItem key={deptName} value={deptName}>{deptName}</SelectItem>
                                     ))}
                                 </SelectContent>
