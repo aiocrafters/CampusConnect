@@ -28,26 +28,28 @@ interface DepartmentFormProps {
   isLoading: boolean;
 }
 
-const academicAffairsDepartments = [
-    "Kindergarten Section (Pre-Primary Wing)",
-    "Primary Section (Classes 1–5)",
-    "Middle Section (Classes 6–8)",
-    "Secondary Section (Classes 9–10)",
-    "Higher Secondary Section (Classes 11–12)",
-    "Examination Office",
-    "Curriculum Development Office",
-    "Teacher Coordination and Supervision Office",
-    "Custom Name",
-];
+// Subordinate department lists
+const subDepartments = {
+    'Academic Affairs Department': ["Kindergarten Section (Pre-Primary Wing)", "Primary Section (Classes 1–5)", "Middle Section (Classes 6–8)", "Secondary Section (Classes 9–10)", "Higher Secondary Section (Classes 11–12)", "Examination", "Curriculum Development", "Teacher Coordination and Supervision", "Custom Name"],
+    'Language and Literature Department': ["English Language", "Literature and Creative Writing", "Foreign Languages (French, Spanish, Chinese, Arabic, etc.)", "Custom Name"],
+    'Mathematics Department': ["Elementary Mathematics", "Secondary Mathematics", "Applied Mathematics / Statistics", "Custom Name"],
+    'Science Department': ["Physics", "Chemistry", "Biology", "Environmental Science", "Laboratory Management", "Custom Name"],
+    'Social Studies and Humanities Department': ["History", "Geography", "Civics and Government", "Economics", "Custom Name"],
+    'Arts and Physical Education Department': ["Music", "Visual Arts", "Drama and Performing Arts", "Physical Education (P.E.)", "Health Education", "Custom Name"],
+    'Computer Science / ICT Department': ["Computer Literacy", "Programming and Web Development", "Network and Systems", "Educational Technology Integration", "Custom Name"],
+    'Business and Technical Education Department': ["Business Studies", "Accounting and Finance", "Entrepreneurship", "Technical and Vocational Training", "Custom Name"],
+    'Technical and Vocational Skills Department': ["Carpentry and Woodwork", "Electronics and Mechanics", "Hospitality and Tourism", "Agriculture and Horticulture", "Custom Name"],
+    'School Administration Department': ["Principal’s", "Vice Principal’s", "Academic Affairs Coordination", "Policy and Planning", "Custom Name"],
+    'Human Resources (HR) Department': ["Recruitment", "Staff Development and Training", "Employee Welfare and Evaluation", "Custom Name"],
+    'Finance and Accounting Department': ["Budget", "Payroll", "Procurement and Supplies", "Audit and Compliance", "Custom Name"],
+    'Admissions and Records Department': ["Student Admissions", "Registrar’s (Records and Transcripts)", "Enrollment Data Management", "Custom Name"],
+    'Student Affairs and Guidance Department': ["Student Discipline", "Counseling and Guidance", "Career Development", "Extracurricular and Clubs", "Parent and Community Relations", "Custom Name"],
+    'Information Technology (IT) Department': ["IT Infrastructure and Network", "Technical Support", "Data Security and Systems Management", "Custom Name"],
+    'Facilities and Maintenance Department': ["Building Maintenance", "Grounds and Utilities", "Security", "Transportation and Logistics", "Custom Name"],
+    'Health and Wellness Department': ["School Clinic / Nurse’s", "Health Education", "Safety and Emergency Response", "Custom Name"],
+};
 
-const schoolAdminDepartments = [
-    "Principal’s Office",
-    "Vice Principal’s Office",
-    "Academic Affairs Office",
-    "Policy and Planning Office",
-    "Custom Name",
-];
-
+type ParentDepartmentKey = keyof typeof subDepartments;
 
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, parentDepartments, isLoading }) => {
   const parentId = useWatch({
@@ -60,11 +62,9 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
     name: 'name',
   });
 
-  const isAcademicAffairs = parentId === 'Academic Affairs';
-  const isSchoolAdministration = parentId === 'School Administration Department';
+  const subordinateOptions = parentId ? subDepartments[parentId as ParentDepartmentKey] : null;
   const isCustomName = departmentName === 'Custom Name';
 
-  // When 'Custom Name' is selected, we want the validation to apply to the 'customName' field.
    const modifiedOnSubmit = (values: DepartmentFormData) => {
     if (values.name === 'Custom Name' && values.customName) {
       onSubmit({ ...values, name: values.customName });
@@ -74,10 +74,10 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
   };
 
   useEffect(() => {
-    if (!isAcademicAffairs && !isSchoolAdministration) {
+    if (parentId && !subordinateOptions) {
       form.setValue('name', '');
     }
-  }, [isAcademicAffairs, isSchoolAdministration, form]);
+  }, [parentId, subordinateOptions, form]);
   
   return (
   <Form {...form}>
@@ -106,44 +106,21 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
                 )}
             />
 
-            {isAcademicAffairs ? (
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Department Name</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a department section" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {academicAffairsDepartments.map(deptName => (
-                                        <SelectItem key={deptName} value={deptName}>{deptName}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            ) : isSchoolAdministration ? (
+            {subordinateOptions ? (
                  <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Office / Section Name</FormLabel>
+                            <FormLabel>Subordinate Department / Unit</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select an office" />
+                                        <SelectValue placeholder="Select a unit" />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    {schoolAdminDepartments.map(deptName => (
+                                    {subordinateOptions.map(deptName => (
                                         <SelectItem key={deptName} value={deptName}>{deptName}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -160,7 +137,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, 
                     <FormItem>
                         <FormLabel>Department Name</FormLabel>
                         <FormControl>
-                        <Input placeholder="e.g., Senior Secondary Wing" {...field} />
+                        <Input placeholder="Enter department name" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>

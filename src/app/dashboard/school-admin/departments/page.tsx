@@ -54,7 +54,7 @@ export default function DepartmentsPage() {
 
   const academicForm = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentFormSchema),
-    defaultValues: { name: "", type: "Academic", parentId: "Academic Affairs" },
+    defaultValues: { name: "", type: "Academic", parentId: "Academic Affairs Department" },
   });
   const vocationalForm = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentFormSchema),
@@ -67,13 +67,13 @@ export default function DepartmentsPage() {
 
   // Parent department options
   const academicParents = [
-    { value: "Academic Affairs", label: "Academic Affairs" },
+    { value: "Academic Affairs Department", label: "Academic Affairs Department" },
     { value: "Language and Literature Department", label: "Language and Literature Department" },
     { value: "Mathematics Department", label: "Mathematics Department" },
     { value: "Science Department", label: "Science Department" },
     { value: "Social Studies and Humanities Department", label: "Social Studies and Humanities Department" },
     { value: "Arts and Physical Education Department", label: "Arts and Physical Education Department" },
-    { value: "Computer Science and ICT Department", label: "Computer Science and ICT Department" },
+    { value: "Computer Science / ICT Department", label: "Computer Science / ICT Department" },
   ];
   const vocationalParents = [
     { value: "Business and Technical Education Department", label: "Business and Technical Education Department" },
@@ -93,7 +93,7 @@ export default function DepartmentsPage() {
   const allParentOptions = useMemo(() => {
     const dynamicParents = departments?.filter(d => !d.parentId).map(d => ({ value: d.id, label: d.name })) || [];
     return [...academicParents, ...vocationalParents, ...nonAcademicParents, ...dynamicParents];
-  },[departments]);
+  },[departments, academicParents, vocationalParents, nonAcademicParents]);
 
 
   const getParentName = (parentId?: string) => {
@@ -120,7 +120,7 @@ export default function DepartmentsPage() {
     toast({ title: "Department Created", description: `${values.name} has been added.` });
     
     // Reset the correct form
-    if(values.type === 'Academic') academicForm.reset({ name: "", type: "Academic", parentId: "Academic Affairs" });
+    if(values.type === 'Academic') academicForm.reset({ name: "", type: "Academic", parentId: "Academic Affairs Department" });
     if(values.type === 'Vocational') vocationalForm.reset({ name: "", type: "Vocational", parentId: "Business and Technical Education Department" });
     if(values.type === 'Non-Academic') nonAcademicForm.reset({ name: "", type: "Non-Academic", parentId: "School Administration Department" });
   };
