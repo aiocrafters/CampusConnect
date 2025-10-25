@@ -1,24 +1,21 @@
-
 "use client"
 
 import { useState, useMemo } from "react";
-import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Department } from "@/lib/types";
+import { DepartmentForm } from "./DepartmentForm";
 
 const departmentFormSchema = z.object({
   id: z.string().optional(),
@@ -30,59 +27,6 @@ const departmentFormSchema = z.object({
 });
 
 type DepartmentFormData = z.infer<typeof departmentFormSchema>;
-
-interface DepartmentFormProps {
-  form: any; // React Hook Form's form object
-  onSubmit: (values: DepartmentFormData) => void;
-  parentDepartments: { value: string; label: string }[];
-  isLoading: boolean;
-}
-
-const DepartmentForm: React.FC<DepartmentFormProps> = ({ form, onSubmit, parentDepartments, isLoading }) => (
-  <Form {...form}>
-    <form onSubmit={form.handleSubmit(onSubmit)} className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-      <FormField
-        control={form.control}
-        name="parentId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Parent Department</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a parent department" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {parentDepartments.map(dept => (
-                  <SelectItem key={dept.value} value={dept.value}>{dept.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Department Name</FormLabel>
-            <FormControl>
-              <Input placeholder="e.g., Senior Secondary Wing" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <Button type="submit" disabled={isLoading}>
-        <PlusCircle className="mr-2 h-4 w-4" />
-        Add Department
-      </Button>
-    </form>
-  </Form>
-);
 
 export default function DepartmentsPage() {
   const { user, firestore } = useFirebase();
