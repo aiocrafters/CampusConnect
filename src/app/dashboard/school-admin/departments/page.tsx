@@ -24,7 +24,17 @@ const departmentFormSchema = z.object({
     required_error: "Department type is required.",
   }),
   parentId: z.string().optional(),
+  customName: z.string().optional(),
+}).refine(data => {
+    if (data.name === 'Custom Name') {
+        return !!data.customName && data.customName.length >= 2;
+    }
+    return true;
+}, {
+    message: "Custom department name must be at least 2 characters.",
+    path: ["customName"],
 });
+
 
 type DepartmentFormData = z.infer<typeof departmentFormSchema>;
 
@@ -57,13 +67,13 @@ export default function DepartmentsPage() {
 
   // Parent department options
   const academicParents = [
+    { value: "Academic Affairs", label: "Academic Affairs" },
     { value: "Language and Literature Department", label: "Language and Literature Department" },
     { value: "Mathematics Department", label: "Mathematics Department" },
     { value: "Science Department", label: "Science Department" },
     { value: "Social Studies and Humanities Department", label: "Social Studies and Humanities Department" },
     { value: "Arts and Physical Education Department", label: "Arts and Physical Education Department" },
     { value: "Computer Science and ICT Department", label: "Computer Science and ICT Department" },
-    { value: "Academic Affairs", label: "Academic Affairs" },
   ];
   const vocationalParents = [
     { value: "Business and Technical Education Department", label: "Business and Technical Education Department" },
@@ -110,9 +120,9 @@ export default function DepartmentsPage() {
     toast({ title: "Department Created", description: `${values.name} has been added.` });
     
     // Reset the correct form
-    if(values.type === 'Academic') academicForm.reset();
-    if(values.type === 'Vocational') vocationalForm.reset();
-    if(values.type === 'Non-Academic') nonAcademicForm.reset();
+    if(values.type === 'Academic') academicForm.reset({ name: "", type: "Academic", parentId: "Academic Affairs" });
+    if(values.type === 'Vocational') vocationalForm.reset({ name: "", type: "Vocational", parentId: "Business and Technical Education Department" });
+    if(values.type === 'Non-Academic') nonAcademicForm.reset({ name: "", type: "Non-Academic", parentId: "School Administration Department" });
   };
   
   const handleDelete = (department: Department) => {
